@@ -354,7 +354,8 @@ struct SteamLoginStatusBadge: View {
         Group {
             switch status {
             case .idle:
-                EmptyView()
+                Color.clear
+                    .frame(height: 20)
             case .checking:
                 ProgressView()
                     .controlSize(.small)
@@ -1415,7 +1416,7 @@ struct SteamLoginTerminal {
         clear
         COMMAND_FILE="${BASH_SOURCE[0]}"
         rm -f "$COMMAND_FILE"
-        \(scriptURL.path.shellQuoted) \(trimmedUsername.shellQuoted) \(password.shellQuoted)
+        /usr/bin/env bash \(scriptURL.path.shellQuoted) \(trimmedUsername.shellQuoted) \(password.shellQuoted)
         printf '\\nSteam login finished. You can close this window.\\n'
         read -r -n 1 -s -p 'Press any key to close...'
         printf '\\n'
