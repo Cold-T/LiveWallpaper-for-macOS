@@ -111,6 +111,7 @@ echo
 
 "$STEAMCMD_PATH" \
   +force_install_dir "$DOWNLOAD_DIR" \
+  +@bSiteLicenseAllowCachedClientCredentials 1 \
   "${LOGIN_ARGS[@]}" \
   +"workshop_download_item $APP_ID $ITEM_ID" \
   +quit

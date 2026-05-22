@@ -1326,7 +1326,11 @@ struct SteamLoginStatusChecker {
             let errorPipe = Pipe()
 
             process.executableURL = steamcmdURL
-            process.arguments = ["+login", trimmedUsername, "+quit"]
+            process.arguments = [
+                "+@bSiteLicenseAllowCachedClientCredentials", "1",
+                "+login", trimmedUsername,
+                "+quit",
+            ]
             process.standardInput = FileHandle.nullDevice
             process.standardOutput = outputPipe
             process.standardError = errorPipe

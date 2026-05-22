@@ -64,4 +64,7 @@ echo "SteamCMD: $STEAMCMD_PATH"
 echo "Steam username: $STEAM_USERNAME"
 echo
 
-"$STEAMCMD_PATH" +login "$STEAM_USERNAME" "$STEAM_PASSWORD" +quit
+"$STEAMCMD_PATH" \
+  +@bSiteLicenseAllowCachedClientCredentials 1 \
+  +login "$STEAM_USERNAME" "$STEAM_PASSWORD" \
+  +quit
