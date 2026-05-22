@@ -31,7 +31,10 @@ remove_child_pid() {
     fi
   done
 
-  CHILD_PIDS=("${remaining[@]}")
+  CHILD_PIDS=()
+  if [[ "${#remaining[@]}" -gt 0 ]]; then
+    CHILD_PIDS=("${remaining[@]}")
+  fi
 }
 
 cleanup_children() {
