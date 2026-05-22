@@ -1097,7 +1097,7 @@ struct SettingsView: View {
         importProgressTask = Task { @MainActor in
             while !Task.isCancelled && importProgress < 0.92 {
                 do {
-                    try await Task.sleep(nanoseconds: 180_000_000)
+                    try await Task.sleep(nanoseconds: 540_000_000)
                 } catch {
                     return
                 }
