@@ -20,17 +20,33 @@ IMPORT_DIR="${LIVEWALLPAPER_IMPORT_DIR:-$HOME/Library/Application Support/LiveWa
 IMPORT_MODE="${LIVEWALLPAPER_IMPORT_MODE:-symlink}"
 VOLUME="${LIVEWALLPAPER_VOLUME:-0.0}"
 SCALE_MODE="${LIVEWALLPAPER_SCALE_MODE:-0}"
+CURRENT_CHILD_PID=""
+
+cleanup_child_process() {
+  local status=$?
+  trap - INT TERM
+
+  if [[ -n "$CURRENT_CHILD_PID" ]]; then
+    kill "$CURRENT_CHILD_PID" >/dev/null 2>&1 || true
+    wait "$CURRENT_CHILD_PID" >/dev/null 2>&1 || true
+  fi
+
+  exit "$status"
+}
+
+trap cleanup_child_process INT TERM
 
 usage() {
   cat <<'USAGE'
 Usage:
   tools/download_import_play_workshop_item.sh [workshop_url_or_item_id]
 
-Downloads a Steam Wallpaper Engine Workshop item, finds a directly referenced
-.mp4/.mov video, imports it into LiveWallpaper's wallpaper folder, and starts
-playback through wallpaperdaemon when a LiveWallpaper.app bundle or daemon path
-is available. Scene packages, web wallpapers, application wallpapers, and other
-Workshop project types are not supported yet.
+Downloads a Steam Wallpaper Engine Workshop item or collection/list URL, finds
+directly referenced .mp4/.mov videos, imports them into LiveWallpaper's
+wallpaper folder, and starts playback through wallpaperdaemon when a
+LiveWallpaper.app bundle or daemon path is available. Scene packages, web
+wallpapers, application wallpapers, and other Workshop project types are not
+supported yet.
 
 Environment:
   STEAM_USERNAME                         Steam account name, usually loaded from .env.
@@ -63,6 +79,49 @@ extract_item_id() {
   fi
 
   return 1
+}
+
+resolve_workshop_item_ids() {
+  local item_id="$1"
+  python3 - "$item_id" <<'PY'
+import json
+import sys
+import urllib.parse
+import urllib.request
+
+item_id = sys.argv[1]
+url = "https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/"
+payload = urllib.parse.urlencode({
+    "collectioncount": "1",
+    "publishedfileids[0]": item_id,
+}).encode("utf-8")
+request = urllib.request.Request(
+    url,
+    data=payload,
+    headers={"Content-Type": "application/x-www-form-urlencoded"},
+    method="POST",
+)
+
+try:
+    with urllib.request.urlopen(request, timeout=30) as response:
+        body = json.load(response)
+except Exception:
+    print(item_id)
+    raise SystemExit(0)
+
+details = body.get("response", {}).get("collectiondetails", [])
+children = details[0].get("children", []) if details else []
+ids = [
+    str(child.get("publishedfileid"))
+    for child in children
+    if child.get("publishedfileid")
+]
+
+if ids:
+    print("\n".join(ids))
+else:
+    print(item_id)
+PY
 }
 
 read_project_field() {
@@ -173,6 +232,98 @@ make_frame_image() {
   printf '%s\n' "$video"
 }
 
+import_downloaded_item() {
+  local item_id="$1"
+  local item_dir="$WORKSHOP_DIR/steamapps/workshop/content/$APP_ID/$item_id"
+  local project_json="$item_dir/project.json"
+
+  if [[ ! -d "$item_dir" ]]; then
+    echo "Downloaded item directory was not found: $item_dir" >&2
+    return 3
+  fi
+
+  local title=""
+  local type=""
+  if [[ -f "$project_json" ]]; then
+    title="$(read_project_field "$project_json" title)"
+    type="$(read_project_field "$project_json" type)"
+  fi
+
+  local video_path=""
+  video_path="$(find_video_file "$item_dir")" || {
+    echo "No .mp4/.mov file was found for item $item_id." >&2
+    if [[ -n "$type" ]]; then
+      echo "Workshop project type: $type" >&2
+    fi
+    echo "Current LiveWallpaper playback supports video Workshop items only: .mp4 and .mov." >&2
+    echo "scene.pkg, web, application, and other Wallpaper Engine project types are not supported yet." >&2
+    return 4
+  }
+
+  mkdir -p "$IMPORT_DIR"
+  local video_name
+  local imported_path
+  video_name="$(basename "$video_path")"
+  imported_path="$IMPORT_DIR/$item_id-$video_name"
+
+  if [[ "$IMPORT_MODE" == "copy" ]]; then
+    cp -f "$video_path" "$imported_path"
+  else
+    rm -f "$imported_path"
+    ln -s "$video_path" "$imported_path"
+  fi
+
+  local frame_path="$item_dir/.livewallpaper-no-static-frame.png"
+  if [[ "${LIVEWALLPAPER_SET_STATIC_FRAME:-0}" == "1" ]]; then
+    frame_path="$(make_frame_image "$video_path" "$item_dir")"
+  fi
+
+  IMPORTED_ITEM_IDS+=("$item_id")
+  IMPORTED_PATHS+=("$imported_path")
+  IMPORTED_FRAME_PATHS+=("$frame_path")
+
+  echo
+  echo "Workshop item: $item_id"
+  if [[ -n "$title" ]]; then
+    echo "Title: $title"
+  fi
+  if [[ -n "$type" ]]; then
+    echo "Type: $type"
+  fi
+  echo "Video: $video_path"
+  echo "Imported: $imported_path"
+
+  return 0
+}
+
+emit_collection_download_progress() {
+  local completed="$1"
+  local total="$2"
+  local remaining=$((total - completed))
+
+  if [[ "$remaining" -lt 0 ]]; then
+    remaining=0
+  fi
+
+  echo "Download progress: completed=$completed remaining=$remaining total=$total"
+}
+
+download_single_item() {
+  local item_id="$1"
+
+  env \
+    LIVEWALLPAPER_SHOW_DOWNLOAD_PROGRESS=0 \
+    LIVEWALLPAPER_SKIP_COLLECTION_RESOLVE=1 \
+    "$SCRIPT_DIR/download_wallpaper_engine_item.sh" "$item_id" &
+  CURRENT_CHILD_PID=$!
+
+  local status=0
+  wait "$CURRENT_CHILD_PID" || status=$?
+  CURRENT_CHILD_PID=""
+
+  return "$status"
+}
+
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
@@ -183,62 +334,78 @@ ITEM_ID="$(extract_item_id "$ITEM_INPUT")" || {
   exit 2
 }
 
-"$SCRIPT_DIR/download_wallpaper_engine_item.sh" "$ITEM_INPUT"
-
-ITEM_DIR="$WORKSHOP_DIR/steamapps/workshop/content/$APP_ID/$ITEM_ID"
-PROJECT_JSON="$ITEM_DIR/project.json"
-
-if [[ ! -d "$ITEM_DIR" ]]; then
-  echo "Downloaded item directory was not found: $ITEM_DIR" >&2
-  exit 3
-fi
-
-TITLE=""
-TYPE=""
-if [[ -f "$PROJECT_JSON" ]]; then
-  TITLE="$(read_project_field "$PROJECT_JSON" title)"
-  TYPE="$(read_project_field "$PROJECT_JSON" type)"
-fi
-
-VIDEO_PATH="$(find_video_file "$ITEM_DIR")" || {
-  echo "No .mp4/.mov file was found for item $ITEM_ID." >&2
-  if [[ -n "$TYPE" ]]; then
-    echo "Workshop project type: $TYPE" >&2
+WORKSHOP_ITEM_IDS=()
+while IFS= read -r item_id; do
+  if [[ -n "$item_id" ]]; then
+    WORKSHOP_ITEM_IDS+=("$item_id")
   fi
-  echo "Current LiveWallpaper playback supports video Workshop items only: .mp4 and .mov." >&2
-  echo "scene.pkg, web, application, and other Wallpaper Engine project types are not supported yet." >&2
-  exit 4
-}
+done < <(resolve_workshop_item_ids "$ITEM_ID")
 
-mkdir -p "$IMPORT_DIR"
-VIDEO_NAME="$(basename "$VIDEO_PATH")"
-IMPORTED_PATH="$IMPORT_DIR/$ITEM_ID-$VIDEO_NAME"
+if [[ "${#WORKSHOP_ITEM_IDS[@]}" -eq 0 ]]; then
+  WORKSHOP_ITEM_IDS=("$ITEM_ID")
+fi
 
-if [[ "$IMPORT_MODE" == "copy" ]]; then
-  cp -f "$VIDEO_PATH" "$IMPORTED_PATH"
+IS_COLLECTION=0
+if [[ "${#WORKSHOP_ITEM_IDS[@]}" -gt 1 || "${WORKSHOP_ITEM_IDS[0]}" != "$ITEM_ID" ]]; then
+  IS_COLLECTION=1
+  echo "Workshop collection: $ITEM_ID"
+  echo "Collection items: ${#WORKSHOP_ITEM_IDS[@]}"
+fi
+
+IMPORTED_ITEM_IDS=()
+IMPORTED_PATHS=()
+IMPORTED_FRAME_PATHS=()
+FAILED_COUNT=0
+
+if [[ "$IS_COLLECTION" == "1" ]]; then
+  DOWNLOADED_COUNT=0
+  emit_collection_download_progress "$DOWNLOADED_COUNT" "${#WORKSHOP_ITEM_IDS[@]}"
+
+  for item_id in "${WORKSHOP_ITEM_IDS[@]}"; do
+    echo
+    echo "Downloading collection item: $item_id"
+    download_single_item "$item_id"
+
+    if import_downloaded_item "$item_id"; then
+      :
+    else
+      FAILED_COUNT=$((FAILED_COUNT + 1))
+    fi
+
+    DOWNLOADED_COUNT=$((DOWNLOADED_COUNT + 1))
+    emit_collection_download_progress "$DOWNLOADED_COUNT" "${#WORKSHOP_ITEM_IDS[@]}"
+  done
 else
-  rm -f "$IMPORTED_PATH"
-  ln -s "$VIDEO_PATH" "$IMPORTED_PATH"
+  "$SCRIPT_DIR/download_wallpaper_engine_item.sh" "$ITEM_INPUT" &
+  CURRENT_CHILD_PID=$!
+  wait "$CURRENT_CHILD_PID"
+  CURRENT_CHILD_PID=""
+
+  if import_downloaded_item "$ITEM_ID"; then
+    :
+  else
+    status=$?
+    exit "$status"
+  fi
 fi
 
 defaults write uk.coldt.LiveWallpaper WallpaperFolder "$IMPORT_DIR"
 defaults write uk.coldt.LiveWallpaper WallpaperFolder "$IMPORT_DIR"
 
-FRAME_PATH="$ITEM_DIR/.livewallpaper-no-static-frame.png"
-if [[ "${LIVEWALLPAPER_SET_STATIC_FRAME:-0}" == "1" ]]; then
-  FRAME_PATH="$(make_frame_image "$VIDEO_PATH" "$ITEM_DIR")"
+if [[ "${#IMPORTED_PATHS[@]}" -eq 0 ]]; then
+  echo "No .mp4/.mov file was imported." >&2
+  exit 4
 fi
 
 echo
-echo "Workshop item: $ITEM_ID"
-if [[ -n "$TITLE" ]]; then
-  echo "Title: $TITLE"
+if [[ "$IS_COLLECTION" == "1" ]]; then
+  echo "Imported collection: ${#IMPORTED_PATHS[@]} videos"
+  if [[ "$FAILED_COUNT" -gt 0 ]]; then
+    echo "Skipped items: $FAILED_COUNT"
+  fi
+else
+  echo "Workshop item imported."
 fi
-if [[ -n "$TYPE" ]]; then
-  echo "Type: $TYPE"
-fi
-echo "Video: $VIDEO_PATH"
-echo "Imported: $IMPORTED_PATH"
 echo "LiveWallpaper folder: $IMPORT_DIR"
 
 if [[ "${LIVEWALLPAPER_SKIP_PLAY:-0}" == "1" ]]; then
@@ -248,9 +415,15 @@ fi
 
 if DAEMON_PATH="$(find_wallpaperdaemon)"; then
   echo "Starting wallpaperdaemon: $DAEMON_PATH"
-  LABEL="com.livewallpaper.workshop.$ITEM_ID"
+  if [[ "$IS_COLLECTION" == "1" ]]; then
+    echo "Starting first imported video from collection."
+  fi
+  LABEL="com.livewallpaper.workshop.${IMPORTED_ITEM_IDS[0]}"
+  if [[ "$IS_COLLECTION" == "1" ]]; then
+    LABEL="com.livewallpaper.workshop.$ITEM_ID"
+  fi
   launchctl remove "$LABEL" >/dev/null 2>&1 || true
-  launchctl submit -l "$LABEL" -- "$DAEMON_PATH" "$IMPORTED_PATH" "$FRAME_PATH" "$VOLUME" "$SCALE_MODE"
+  launchctl submit -l "$LABEL" -- "$DAEMON_PATH" "${IMPORTED_PATHS[0]}" "${IMPORTED_FRAME_PATHS[0]}" "$VOLUME" "$SCALE_MODE"
   echo "launchctl label: $LABEL"
 else
   echo

@@ -38,6 +38,9 @@
 "Workshop URL or ID" = "创意工坊 URL 或 ID";
 "Import" = "导入";
 "Importing..." = "导入中...";
+"Stop download" = "终止下载";
+"Workshop download stopped" = "已终止下载";
+"Workshop download progress format" = "下载完成 %d 个，还差 %d 个";
 "Workshop item imported" = "导入好了，随时可以使用。";
 "Workshop import script was not found" = "没找到创意工坊导入脚本。";
 "Workshop import failed" = "创意工坊导入失败";

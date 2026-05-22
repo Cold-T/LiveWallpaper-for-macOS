@@ -20,6 +20,7 @@
 import AVFoundation
 import AppKit
 import Combine
+import Darwin
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -182,6 +183,8 @@ enum L {
     static var workshopPlaceholder: String { tr("Workshop URL or ID") }
     static var importWorkshop: String { tr("Import") }
     static var importingWorkshop: String { tr("Importing...") }
+    static var cancelWorkshopImport: String { tr("Stop download") }
+    static var workshopImportCancelled: String { tr("Workshop download stopped") }
     static var workshopImported: String { tr("Workshop item imported") }
     static var steamUsername: String { tr("Steam username") }
     static var steamPassword: String { tr("Steam password") }
@@ -647,13 +650,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showFolderPicker = false
     @State private var workshopInput = ""
-    @State private var workshopStatus = ""
-    @State private var workshopStatusIsError = false
     @State private var steamLoginStatus = ""
     @State private var steamPassword = ""
-    @State private var isImportingWorkshop = false
-    @State private var importProgress = 0.0
-    @State private var importProgressTask: Task<Void, Never>?
     @AppStorage(UserDefaultsKeys.steamUsername) var steamUsername = ""
     @AppStorage(UserDefaultsKeys.scaleMode) var scaleMode: Int = 0
     @State private var localMinutes: Int = 60
@@ -743,30 +741,39 @@ struct SettingsView: View {
                                     .frame(width: 230)
 
                                 Button {
-                                    importWorkshopItem()
+                                    if viewModel.isImportingWorkshop {
+                                        viewModel.cancelWorkshopImport()
+                                    } else {
+                                        viewModel.startWorkshopImport(workshopInput)
+                                    }
                                 } label: {
-                                    Text(isImportingWorkshop ? L.importingWorkshop : L.importWorkshop)
+                                    Text(
+                                        viewModel.isImportingWorkshop
+                                            ? L.cancelWorkshopImport : L.importWorkshop
+                                    )
                                 }
                                 .frame(width: 96, height: 24)
                                 .disabled(
-                                    isImportingWorkshop
-                                        || workshopInput.trimmingCharacters(
+                                    !viewModel.isImportingWorkshop
+                                        && (workshopInput.trimmingCharacters(
                                             in: .whitespacesAndNewlines
                                         ).isEmpty
-                                        || !viewModel.steamLoginStatus.isLoggedIn
+                                        || !viewModel.steamLoginStatus.isLoggedIn)
                                 )
                             }
 
-                            if isImportingWorkshop {
-                                ProgressView(value: importProgress, total: 1.0)
+                            if viewModel.isImportingWorkshop {
+                                ProgressView(value: viewModel.workshopImportProgress, total: 1.0)
                                     .progressViewStyle(.linear)
                                     .frame(width: 334)
                             }
 
-                            if !workshopStatus.isEmpty {
-                                Text(workshopStatus)
+                            if !viewModel.workshopImportStatus.isEmpty {
+                                Text(viewModel.workshopImportStatus)
                                     .font(.caption)
-                                    .foregroundStyle(workshopStatusIsError ? .red : .secondary)
+                                    .foregroundStyle(
+                                        viewModel.workshopImportStatusIsError ? .red : .secondary
+                                    )
                                     .lineLimit(2)
                                     .fixedSize(horizontal: false, vertical: true)
                                     .frame(width: 334, alignment: .leading)
@@ -1069,56 +1076,6 @@ struct SettingsView: View {
         }
     }
 
-    private func importWorkshopItem() {
-        isImportingWorkshop = true
-        workshopStatusIsError = false
-        startImportProgress()
-        workshopStatus = L.importingWorkshop
-
-        Task { @MainActor in
-            do {
-                let output = try await viewModel.importWorkshopItem(workshopInput)
-                workshopStatus = output.isEmpty ? L.workshopImported : output
-                workshopStatusIsError = false
-            } catch {
-                workshopStatus = error.localizedDescription
-                workshopStatusIsError = true
-            }
-            finishImportProgress()
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            isImportingWorkshop = false
-            importProgress = 0
-        }
-    }
-
-    private func startImportProgress() {
-        importProgressTask?.cancel()
-        importProgress = 0.04
-        importProgressTask = Task { @MainActor in
-            while !Task.isCancelled && importProgress < 0.92 {
-                do {
-                    try await Task.sleep(nanoseconds: 540_000_000)
-                } catch {
-                    return
-                }
-
-                let remaining = 0.92 - importProgress
-                let step = max(0.006, remaining * 0.07)
-                withAnimation(.easeOut(duration: 0.18)) {
-                    importProgress = min(0.92, importProgress + step)
-                }
-            }
-        }
-    }
-
-    private func finishImportProgress() {
-        importProgressTask?.cancel()
-        importProgressTask = nil
-        withAnimation(.easeOut(duration: 0.2)) {
-            importProgress = 1
-        }
-    }
-
     private func openSteamLoginTerminal() {
         steamLoginStatus = L.openingSteamLogin
 
@@ -1169,12 +1126,15 @@ struct VideoItem: Identifiable {
 // MARK: - Workshop Import
 enum WorkshopImportError: LocalizedError {
     case missingScript
+    case cancelled
     case failed(status: Int32, output: String)
 
     var errorDescription: String? {
         switch self {
         case .missingScript:
             return "Workshop import script was not found".localized
+        case .cancelled:
+            return "Workshop download stopped".localized
         case .failed(let status, let output):
             let reason = Self.failureReason(status: status, output: output)
             guard !output.isEmpty else {
@@ -1222,19 +1182,70 @@ enum WorkshopImportError: LocalizedError {
     }
 }
 
+final class WorkshopImportProcessController: @unchecked Sendable {
+    private let lock = NSLock()
+    nonisolated(unsafe) private var process: Process?
+    nonisolated(unsafe) private var didCancel = false
+
+    nonisolated var isCancelled: Bool {
+        lock.lock()
+        let value = didCancel
+        lock.unlock()
+        return value
+    }
+
+    nonisolated func set(_ process: Process) {
+        lock.lock()
+        self.process = process
+        lock.unlock()
+    }
+
+    nonisolated func clear(_ process: Process) {
+        lock.lock()
+        if self.process === process {
+            self.process = nil
+        }
+        lock.unlock()
+    }
+
+    nonisolated func terminate() {
+        lock.lock()
+        didCancel = true
+        let process = self.process
+        lock.unlock()
+
+        guard let process, process.isRunning else {
+            return
+        }
+
+        process.terminate()
+
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2) {
+            if process.isRunning {
+                kill(process.processIdentifier, SIGKILL)
+            }
+        }
+    }
+}
+
 struct WorkshopImporter {
     let importFolder: String
     let steamUsername: String?
 
-    func importItem(_ input: String) async throws -> String {
+    func importItem(
+        _ input: String,
+        progress: @escaping @MainActor @Sendable (String) -> Void = { _ in }
+    ) async throws -> String {
         guard let scriptURL = findScriptURL() else {
             throw WorkshopImportError.missingScript
         }
         let importFolder = importFolder
         let steamUsername = steamUsername?.trimmingCharacters(in: .whitespacesAndNewlines)
         let appBundlePath = Bundle.main.bundlePath
+        let processController = WorkshopImportProcessController()
 
-        return try await Task.detached(priority: .userInitiated) {
+        return try await withTaskCancellationHandler {
+            try await Task.detached(priority: .userInitiated) {
             let process = Process()
             let pipe = Pipe()
             var environment = ProcessInfo.processInfo.environment
@@ -1254,18 +1265,55 @@ struct WorkshopImporter {
             process.standardError = pipe
 
             try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            processController.set(process)
+            if processController.isCancelled {
+                processController.terminate()
+            }
+            var output = ""
+            defer {
+                processController.clear(process)
+            }
+
+            while true {
+                if Task.isCancelled || processController.isCancelled {
+                    processController.terminate()
+                    throw WorkshopImportError.cancelled
+                }
+
+                let data = pipe.fileHandleForReading.availableData
+                if data.isEmpty {
+                    break
+                }
+
+                let chunk = String(data: data, encoding: .utf8) ?? ""
+                output += chunk
+
+                if let progressSummary = Self.progressSummary(from: output) {
+                    await progress(progressSummary)
+                }
+            }
+
             process.waitUntilExit()
 
-            let output = String(data: data, encoding: .utf8) ?? ""
+            if Task.isCancelled || processController.isCancelled {
+                throw WorkshopImportError.cancelled
+            }
+
             let summary = Self.summary(from: output)
+
+            if processController.isCancelled {
+                throw WorkshopImportError.cancelled
+            }
 
             guard process.terminationStatus == 0 else {
                 throw WorkshopImportError.failed(status: process.terminationStatus, output: summary)
             }
 
             return summary
-        }.value
+            }.value
+        } onCancel: {
+            processController.terminate()
+        }
     }
 
     private func findScriptURL() -> URL? {
@@ -1284,11 +1332,64 @@ struct WorkshopImporter {
         return candidates.first { fileManager.fileExists(atPath: $0.path) }
     }
 
+    nonisolated private static func progressSummary(from output: String) -> String? {
+        let lines = normalizedLines(from: output)
+
+        if let progress = lines.last(where: { $0.hasPrefix("Download progress:") }) {
+            return localizedDownloadProgress(from: progress) ?? progress
+        }
+
+        if let collection = lines.last(where: { $0.hasPrefix("Collection items:") }) {
+            let rawCount = collection.replacingOccurrences(of: "Collection items:", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let total = Int(rawCount) {
+                return String(
+                    format: AppLocalization.localizedString("Workshop download progress format"),
+                    0,
+                    total
+                )
+            }
+        }
+
+        return nil
+    }
+
+    nonisolated private static func localizedDownloadProgress(from line: String) -> String? {
+        let values = keyValueIntegers(
+            in: line.replacingOccurrences(of: "Download progress:", with: "")
+        )
+        guard let completed = values["completed"], let remaining = values["remaining"] else {
+            return nil
+        }
+
+        return String(
+            format: AppLocalization.localizedString("Workshop download progress format"),
+            completed,
+            remaining
+        )
+    }
+
+    nonisolated private static func keyValueIntegers(in line: String) -> [String: Int] {
+        var values: [String: Int] = [:]
+
+        for part in line.split(whereSeparator: \.isWhitespace) {
+            let pieces = part.split(separator: "=", maxSplits: 1)
+            guard pieces.count == 2, let value = Int(pieces[1]) else {
+                continue
+            }
+            values[String(pieces[0])] = value
+        }
+
+        return values
+    }
+
     nonisolated private static func summary(from output: String) -> String {
-        let lines = output
-            .split(whereSeparator: \.isNewline)
-            .map(String.init)
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let lines = normalizedLines(from: output)
+
+        if let collection = lines.last(where: { $0.hasPrefix("Imported collection:") }) {
+            return collection.replacingOccurrences(of: "Imported collection:", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
         if let title = lines.last(where: { $0.hasPrefix("Title:") }) {
             return title.replacingOccurrences(of: "Title:", with: "")
@@ -1301,6 +1402,15 @@ struct WorkshopImporter {
         }
 
         return lines.suffix(2).joined(separator: "\n")
+    }
+
+    nonisolated private static func normalizedLines(from output: String) -> [String] {
+        output
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }
 
@@ -1536,9 +1646,16 @@ class WallpaperViewModel: ObservableObject {
     @Published var volume: Double = 50.0
     @Published var vinttageBar: Bool = true
     @Published var steamLoginStatus: SteamLoginStatus = .idle
+    @Published var isImportingWorkshop = false
+    @Published var workshopImportStatus = ""
+    @Published var workshopImportStatusIsError = false
+    @Published var workshopImportProgress = 0.0
 
     private var currentReloadID = UUID()
     private var steamLoginCheckTask: Task<Void, Never>?
+    private var workshopImportTask: Task<Void, Never>?
+    private var workshopImportProgressTask: Task<Void, Never>?
+    private var completedWorkshopDownloadCount = 0
     private let reloadIDLock = NSLock()
     private let defaults = UserDefaults.standard
     let engine: LiveWallpaper
@@ -1551,6 +1668,7 @@ class WallpaperViewModel: ObservableObject {
 
     func invalidate() {
         cancelSteamLoginStatusChecks()
+        cancelWorkshopImportProgress()
         engine.removeNotifications()
     }
 
@@ -1696,7 +1814,10 @@ class WallpaperViewModel: ObservableObject {
         engine.generateStaticWallpapers(forFolder: folderPath) {}
     }
 
-    func importWorkshopItem(_ input: String) async throws -> String {
+    func importWorkshopItem(
+        _ input: String,
+        progress: @escaping @MainActor @Sendable (String) -> Void = { _ in }
+    ) async throws -> String {
         let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
         var targetFolder = folderPath
 
@@ -1716,9 +1837,143 @@ class WallpaperViewModel: ObservableObject {
         let output = try await WorkshopImporter(
             importFolder: targetFolder,
             steamUsername: steamUsername
-        ).importItem(trimmedInput)
+        ).importItem(trimmedInput, progress: progress)
         reloadContent()
         return output
+    }
+
+    func startWorkshopImport(_ input: String) {
+        guard !isImportingWorkshop else {
+            return
+        }
+
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty else {
+            return
+        }
+
+        isImportingWorkshop = true
+        workshopImportStatusIsError = false
+        completedWorkshopDownloadCount = 0
+        startWorkshopImportProgress()
+        workshopImportStatus = L.importingWorkshop
+
+        workshopImportTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            var wasCancelled = false
+
+            do {
+                let output = try await self.importWorkshopItem(trimmedInput) { progress in
+                    self.handleWorkshopProgress(progress)
+                }
+                self.workshopImportStatus = output.isEmpty ? L.workshopImported : output
+                self.workshopImportStatusIsError = false
+            } catch is CancellationError {
+                wasCancelled = true
+                self.workshopImportStatus = L.workshopImportCancelled
+                self.workshopImportStatusIsError = false
+            } catch WorkshopImportError.cancelled {
+                wasCancelled = true
+                self.workshopImportStatus = L.workshopImportCancelled
+                self.workshopImportStatusIsError = false
+            } catch {
+                self.workshopImportStatus = error.localizedDescription
+                self.workshopImportStatusIsError = true
+            }
+
+            if wasCancelled {
+                self.cancelWorkshopImportProgress()
+            } else {
+                self.finishWorkshopImportProgress()
+                try? await Task.sleep(nanoseconds: 350_000_000)
+            }
+            self.isImportingWorkshop = false
+            self.workshopImportProgress = 0
+            self.completedWorkshopDownloadCount = 0
+            self.workshopImportTask = nil
+        }
+    }
+
+    func cancelWorkshopImport() {
+        guard isImportingWorkshop else {
+            return
+        }
+
+        workshopImportStatus = L.workshopImportCancelled
+        workshopImportStatusIsError = false
+        cancelWorkshopImportProgress()
+        workshopImportTask?.cancel()
+    }
+
+    private func handleWorkshopProgress(_ progress: String) {
+        workshopImportStatus = progress
+        workshopImportStatusIsError = false
+
+        guard let counts = downloadCounts(from: progress),
+              counts.completed > completedWorkshopDownloadCount else {
+            return
+        }
+
+        completedWorkshopDownloadCount = counts.completed
+        if counts.remaining > 0 {
+            resetWorkshopImportProgressForNextVideo()
+        }
+    }
+
+    private func downloadCounts(from progress: String) -> (completed: Int, remaining: Int)? {
+        let numbers = progress
+            .split { !$0.isNumber }
+            .compactMap { Int($0) }
+
+        guard numbers.count >= 2 else {
+            return nil
+        }
+
+        return (numbers[0], numbers[1])
+    }
+
+    private func startWorkshopImportProgress() {
+        cancelWorkshopImportProgress()
+        workshopImportProgress = 0.04
+        workshopImportProgressTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                if Task.isCancelled {
+                    return
+                }
+
+                guard let self else {
+                    return
+                }
+                if self.workshopImportProgress >= 0.92 {
+                    return
+                }
+
+                withAnimation(.linear(duration: 0.05)) {
+                    self.workshopImportProgress = min(0.92, self.workshopImportProgress + 0.001)
+                }
+            }
+        }
+    }
+
+    private func resetWorkshopImportProgressForNextVideo() {
+        cancelWorkshopImportProgress()
+        workshopImportProgress = 0
+        startWorkshopImportProgress()
+    }
+
+    private func finishWorkshopImportProgress() {
+        cancelWorkshopImportProgress()
+        withAnimation(.easeOut(duration: 0.2)) {
+            workshopImportProgress = 1
+        }
+    }
+
+    private func cancelWorkshopImportProgress() {
+        workshopImportProgressTask?.cancel()
+        workshopImportProgressTask = nil
     }
 
     private func getDisplayName(for id: CGDirectDisplayID) -> String {

@@ -38,6 +38,9 @@
 "Workshop URL or ID" = "Workshop URL or ID";
 "Import" = "Import";
 "Importing..." = "Importing...";
+"Stop download" = "Stop download";
+"Workshop download stopped" = "Download stopped";
+"Workshop download progress format" = "Downloaded %d, %d remaining";
 "Workshop item imported" = "Imported. Ready when you are.";
 "Workshop import script was not found" = "I couldn't find the Workshop import script.";
 "Workshop import failed" = "Workshop import failed";
