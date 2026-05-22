@@ -1,48 +1,50 @@
-> [!NOTE]
-> ## 我将把 Objective C++ 的 UI 逐步改造成 SwiftUI，但 `daemon` 不会改变。
-
 # macOS 14+ 动态壁纸应用 WallpaperEngine
 
 **语言：** [English](README.md) | 简体中文
 
 ![Roller](./asset/livewall.png)
 
-这是一个面向 macOS 14+ 的开源动态壁纸应用。
+WallpaperEngine 是一个面向 macOS 14+ 的开源动态壁纸应用。
 
-## 项目目标
+## 项目目的
 
-本项目的目标是在 macOS 上实现一个类似 Wallpaper Engine 的动态壁纸体验，基础项目为 WallpaperEngine。壁纸资源预计来自 Steam 的 Wallpaper Engine Workshop。
+项目目的很简单：让视频动态壁纸在 macOS 上更好用。当前重点是本地视频壁纸、菜单栏控制、多显示器处理，以及导入兼容的 Steam Wallpaper Engine Workshop 项目。
 
-## 使用 Homebrew 安装
+本项目基于 [thusvill/LiveWallpaperMacOS](https://github.com/thusvill/LiveWallpaperMacOS) 的 release 源进行整理和改造，并在此基础上加入当前 SwiftUI 界面、状态栏流程和 Workshop 导入功能。
 
-在终端运行：`brew tap thusvill/wallpaperengine && brew install --cask wallpaperengine`
+## 安装
 
-## 从源码编译安装
+从 [Releases](https://github.com/Cold-T/LiveWallpaperMacOS/releases) 下载最新的 `WallpaperEngine.dmg`，打开后将 `WallpaperEngine.app` 移到 `Applications`。
+
+## 从源码编译
 
 - macOS 14+
 - git
 - Xcode
-- CMake
 
 运行：
-`git clone https://github.com/thusvill/WallpaperEngine.git && cd WallpaperEngine && mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)`
+
+```sh
+git clone https://github.com/Cold-T/LiveWallpaperMacOS.git
+cd LiveWallpaperMacOS
+xcodebuild -project WallpaperEngine.xcodeproj -scheme WallpaperEngine -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+```
 
 ## DMG 安装指南
 
 > [!IMPORTANT]
-> ## 修复 “WallpaperEngine.app” 已损坏，无法打开。建议你将该对象移到废纸篓。
-> 将应用安装到 Applications 文件夹后，你需要绕过 Gatekeeper 才能运行（因为我不想为开源应用给 Apple 付费）。
->
-> 这也会解决占用问题：
+> ## 如果 macOS 提示 “WallpaperEngine.app” 已损坏，无法打开
+> 当前发布包没有做 notarization，首次启动可能会被 Gatekeeper 拦截。
+> 将应用移到 `Applications` 后运行：
 >
 > `xattr -d com.apple.quarantine /Applications/WallpaperEngine.app`
 
-点击 “OpenInFinder” 按钮会打开一个文件夹，你可以把壁纸文件放进去。
+点击 “在 Finder 中显示” 按钮会打开壁纸文件夹，你可以把壁纸文件放进去。
 
 > [!NOTE]
 > 请选择的文件夹路径不要包含空格。
 >
-> 文件名中不要包含多个点号（扩展名的点号除外）！
+> 文件名中尽量不要包含多个点号（扩展名的点号除外）。
 >
 > ## 例如：
 >

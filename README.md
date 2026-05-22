@@ -1,47 +1,50 @@
 
-![Status: Paused](https://img.shields.io/badge/Project_Status-Paused_Until_Aug_2026-red?style=for-the-badge)
-
-# WallpaperEngine App for MacOS 14+
+# WallpaperEngine App for macOS 14+
 
 **Languages:** English | [简体中文](README.zh-Hans.md)
 
 ![Roller](./asset/livewall.png)
 
-This is an open-source live wallpaper application for MacOS 14+.
+WallpaperEngine is an open-source live wallpaper app for macOS 14+.
 
-## Project Goal
+## Purpose
 
-This project aims to build a Wallpaper Engine-like experience on macOS, using WallpaperEngine as the foundation. Wallpaper assets are expected to come from the Steam Wallpaper Engine Workshop.
+The goal is simple: make video wallpapers feel practical on macOS. The app focuses on local video wallpapers, menu bar controls, multi-display handling, and importing compatible items from Steam Wallpaper Engine Workshop.
 
-## Install using brew
+This project is based on the release source of [thusvill/LiveWallpaperMacOS](https://github.com/thusvill/LiveWallpaperMacOS), then adjusted for the current SwiftUI app, status bar workflow, and Workshop import features.
 
-Run this on terminal `brew tap thusvill/wallpaperengine && brew install --cask wallpaperengine`
+## Installation
 
-## Installation(Compile from source)
+Download the latest `WallpaperEngine.dmg` from [Releases](https://github.com/Cold-T/LiveWallpaperMacOS/releases), open it, and move `WallpaperEngine.app` to `Applications`.
+
+## Build from source
 - macOS 14+
 - git
 - Xcode
-- Cmake
-  
-Run this: `git clone https://github.com/thusvill/WallpaperEngine.git && cd WallpaperEngine && mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)`
 
+Run:
+
+```sh
+git clone https://github.com/Cold-T/LiveWallpaperMacOS.git
+cd LiveWallpaperMacOS
+xcodebuild -project WallpaperEngine.xcodeproj -scheme WallpaperEngine -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+```
 
 ## Guide for DMG Installation
 
 > [!IMPORTANT]
-> ## Fix “WallpaperEngine.app” is corrupted and cannot be opened. It is recommended that you move the object to the recycle bin.
-> After you install the app in Application folder you have to bypass Gatekeeper to run this since I don't want to pay apple for opensource apps.
-> 
-> This will solve the occupation issue
+> ## If macOS says “WallpaperEngine.app” is damaged and cannot be opened
+> This release is not notarized, so Gatekeeper may block the first launch.
+> After moving the app to `Applications`, run:
 > 
 > `xattr -d com.apple.quarantine /Applications/WallpaperEngine.app` 
 
-Click the "OpenInFinder" button and it'll open a folder, you can place wallpapers in it.
+Click the "Show in Finder" button to open the wallpaper folder, then place wallpapers in it.
 
 > [!NOTE]
-> Make sure the folder selected doesn't include spaces.
+> Make sure the selected folder path doesn't include spaces.
 >
-> No dots should be contained on the file name exept the dot for extension!
+> File names should avoid extra dots except the dot before the extension.
 > 
 > ## Eg:
 > 
