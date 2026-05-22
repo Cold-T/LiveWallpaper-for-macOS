@@ -38,7 +38,6 @@ struct WallpaperEngineApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var window: NSWindow!
-    private var playPauseMenuItem: NSMenuItem!
     
     let engine = sharedEngine
 
@@ -48,24 +47,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = Self.makeStatusBarImage()
-            button.title = "WE"
-            button.imagePosition = .imageLeading
-            button.toolTip = "Wallpaper Engine"
+            button.image = NSImage(systemSymbolName: "play.desktopcomputer", accessibilityDescription: "Wallpaper Engine")
         }
 
         
         let menu = NSMenu()
-        playPauseMenuItem = NSMenuItem(title: "", action: #selector(toggleWallpaper), keyEquivalent: "")
-        playPauseMenuItem.target = self
-        menu.addItem(playPauseMenuItem)
-        menu.addItem(NSMenuItem(title: NSLocalizedString("Show main window", comment: ""), action: #selector(showWindow), keyEquivalent: "s"))
-        menu.addItem(NSMenuItem(title: NSLocalizedString("Next wallpaper", comment: ""), action: #selector(nextWallpaper), keyEquivalent: "n"))
+        menu.addItem(NSMenuItem(title: NSLocalizedString("Show window", comment: ""), action: #selector(showWindow), keyEquivalent: "s"))
+        menu.addItem(NSMenuItem(title: NSLocalizedString("Hide window", comment: ""), action: #selector(hideWindow), keyEquivalent: "h"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quit), keyEquivalent: "q"))
-        menu.delegate = self
         statusItem.menu = menu
-        updatePlayPauseMenuItem()
 
         // Create main window with ContentView
         window = NSWindow(
@@ -112,18 +103,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    @objc func toggleWallpaper() {
-        if engine?.isWallpaperRunning == true {
-            engine?.killAllDaemons()
-        } else {
-            engine?.startLastWallpaper()
-        }
-        updatePlayPauseMenuItem()
-    }
-
-    @objc func nextWallpaper() {
-        engine?.nextWallpaper()
-        updatePlayPauseMenuItem()
+    // Hide the window without quitting the app
+    @objc func hideWindow() {
+        window.orderOut(nil)
     }
 
     // Quit the app completely
@@ -131,42 +113,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         engine?.terminateApplication()
         NSApp.terminate(nil)
-    }
-
-    private func updatePlayPauseMenuItem() {
-        playPauseMenuItem?.title = engine?.isWallpaperRunning == true
-            ? NSLocalizedString("Stop", comment: "")
-            : NSLocalizedString("Start", comment: "")
-    }
-
-    private static func makeStatusBarImage() -> NSImage {
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size)
-        image.lockFocus()
-
-        NSColor.labelColor.setStroke()
-        NSColor.labelColor.setFill()
-        let screen = NSBezierPath(roundedRect: NSRect(x: 1.5, y: 3.5, width: 15, height: 11), xRadius: 2, yRadius: 2)
-        screen.lineWidth = 1.8
-        screen.stroke()
-
-        let play = NSBezierPath()
-        play.move(to: NSPoint(x: 7, y: 6.5))
-        play.line(to: NSPoint(x: 7, y: 11.5))
-        play.line(to: NSPoint(x: 11.5, y: 9))
-        play.close()
-        play.fill()
-
-        image.unlockFocus()
-        image.isTemplate = true
-        image.accessibilityDescription = "Wallpaper Engine"
-        return image
-    }
-}
-
-extension AppDelegate: NSMenuDelegate {
-    func menuWillOpen(_ menu: NSMenu) {
-        updatePlayPauseMenuItem()
     }
 }
 
