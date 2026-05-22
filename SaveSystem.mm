@@ -1,5 +1,5 @@
 /*
- * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
+ * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
  * Copyright (C) 2025 Bios thusvill
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 
 static std::string configPath() {
   const char *home = getenv("HOME");
-  return std::string(home) + "/Library/Preferences/LiveWallpaper.yaml";
+  return std::string(home) + "/Library/Preferences/WallpaperEngine.yaml";
 }
 
 // ------------------------

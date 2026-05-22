@@ -1,6 +1,6 @@
 /*
   Localizable.strings
-  LiveWallpaper
+  WallpaperEngine
 
   简体中文本地化
 */
@@ -30,6 +30,24 @@
 "clear_cache_button" = "清除缓存 🗑️";
 "reset_userdata" = "重置用户数据";
 "reset" = "重置";
+"Steam Workshop" = "Steam 创意工坊";
+"Workshop URL or ID" = "创意工坊 URL 或 ID";
+"Import" = "导入";
+"Importing..." = "导入中...";
+"Workshop item imported" = "创意工坊项目已导入";
+"Workshop import script was not found" = "找不到创意工坊导入脚本";
+"Workshop import failed" = "创意工坊导入失败";
+"Steam username" = "Steam 用户名";
+"Steam password" = "Steam 密码";
+"Login" = "登录";
+"Checking Steam login..." = "检测中";
+"Steam login is valid" = "已登录";
+"Steam login is required" = "需登录";
+"Stop wallpaper" = "关闭壁纸";
+"Opening Terminal..." = "正在打开终端...";
+"Steam login terminal opened" = "Steam 登录终端已打开";
+"Steam login script was not found" = "找不到 Steam 登录脚本";
+"Could not open Terminal" = "无法打开终端";
 
 // MARK: - 缩放模式
 "scale_fill" = "填充";

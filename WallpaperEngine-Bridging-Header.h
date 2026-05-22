@@ -1,5 +1,5 @@
 /*
- * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
+ * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
  * Copyright (C) 2025 Bios thusvill
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LiveWallpaper_Bridging_Header_h
-#define LiveWallpaper_Bridging_Header_h
+#ifndef WallpaperEngine_Bridging_Header_h
+#define WallpaperEngine_Bridging_Header_h
 
 #import "WallpaperEngine.h"
 #import "DisplayObjc.h"
 
-#endif /* LiveWallpaper_Bridging_Header_h */
+#endif /* WallpaperEngine_Bridging_Header_h */

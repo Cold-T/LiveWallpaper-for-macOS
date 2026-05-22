@@ -1,12 +1,12 @@
 /*
   Localizable.strings
-  LiveWallpaper
+  WallpaperEngine
 
   English localization
 */
 
 // MARK: - Main UI
-"app_name" = "LiveWallpaper";
+"app_name" = "WallpaperEngine";
 "settings" = "Settings";
 "reload" = "Reload";
 
@@ -30,6 +30,24 @@
 "clear_cache_button" = "Clear Cache 🗑️";
 "reset_userdata" = "Reset UserData";
 "reset" = "Reset";
+"Steam Workshop" = "Steam Workshop";
+"Workshop URL or ID" = "Workshop URL or ID";
+"Import" = "Import";
+"Importing..." = "Importing...";
+"Workshop item imported" = "Workshop item imported";
+"Workshop import script was not found" = "Workshop import script was not found";
+"Workshop import failed" = "Workshop import failed";
+"Steam username" = "Steam username";
+"Steam password" = "Steam password";
+"Login" = "Login";
+"Checking Steam login..." = "Checking...";
+"Steam login is valid" = "Logged in";
+"Steam login is required" = "Login required";
+"Stop wallpaper" = "Stop wallpaper";
+"Opening Terminal..." = "Opening Terminal...";
+"Steam login terminal opened" = "Steam login terminal opened";
+"Steam login script was not found" = "Steam login script was not found";
+"Could not open Terminal" = "Could not open Terminal";
 
 // MARK: - Scaling Modes
 "scale_fill" = "Fill";

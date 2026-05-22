@@ -1,5 +1,5 @@
 /*
- * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
+ * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
  * Copyright (C) 2025 Bios thusvill
  *
  * This program is free software: you can redistribute it and/or modify
@@ -138,6 +138,20 @@ enum L {
         "Vignette bar (Reapply the wallpaper after change)", comment: "")
 
     static let rotationDelay = NSLocalizedString("Wallpaper rotation delay", comment: "")
+    static let steamWorkshop = NSLocalizedString("Steam Workshop", comment: "")
+    static let workshopPlaceholder = NSLocalizedString("Workshop URL or ID", comment: "")
+    static let importWorkshop = NSLocalizedString("Import", comment: "")
+    static let importingWorkshop = NSLocalizedString("Importing...", comment: "")
+    static let workshopImported = NSLocalizedString("Workshop item imported", comment: "")
+    static let steamUsername = NSLocalizedString("Steam username", comment: "")
+    static let steamPassword = NSLocalizedString("Steam password", comment: "")
+    static let steamLogin = NSLocalizedString("Login", comment: "")
+    static let checkingSteamLogin = NSLocalizedString("Checking Steam login...", comment: "")
+    static let steamLoggedIn = NSLocalizedString("Steam login is valid", comment: "")
+    static let steamLoginRequired = NSLocalizedString("Steam login is required", comment: "")
+    static let stopWallpaper = NSLocalizedString("Stop wallpaper", comment: "")
+    static let openingSteamLogin = NSLocalizedString("Opening Terminal...", comment: "")
+    static let steamLoginTerminalOpened = NSLocalizedString("Steam login terminal opened", comment: "")
 }
 
 // MARK: - UserDefaults Keys
@@ -154,6 +168,7 @@ enum UserDefaultsKeys {
     static let rotation = "rotation"
     static let rdelay = "rdelay"
     static let rtype = "rtype"
+    static let steamUsername = "steam_username"
 
 }
 
@@ -163,16 +178,17 @@ struct ContentView: View {
     @State private var showSettings = false
     @StateObject private var displayManager = DisplayManager()
 
-    @Environment(\.dismiss) private var dismiss
-    static var didCloseOnLaunch = false
-
     var body: some View {
 
         ZStack {
 
             VStack(spacing: 0) {
                 Spacer(minLength: 20)
-                ToolbarView(showSettings: $showSettings, onReload: { viewModel.reloadContent() })
+                ToolbarView(
+                    showSettings: $showSettings,
+                    onReload: { viewModel.reloadContent() },
+                    onStopWallpaper: { viewModel.stopWallpaper() }
+                )
                     .padding(.horizontal).padding(.top, 24).padding(.bottom, 12)
 
                 ZStack(alignment: .bottom) {
@@ -201,10 +217,7 @@ struct ContentView: View {
             .onAppear {
                 viewModel.loadDisplays()
                 viewModel.reloadContent()
-                if !Self.didCloseOnLaunch, let engine = sharedEngine, !engine.isFirstLaunch() {
-                    Self.didCloseOnLaunch = true
-                    dismiss()
-                }
+                viewModel.checkSteamLoginStatus()
             }
 
             if showSettings {
@@ -231,6 +244,7 @@ struct ContentView: View {
 struct ToolbarView: View {
     @Binding var showSettings: Bool
     let onReload: () -> Void
+    let onStopWallpaper: () -> Void
 
     var body: some View {
         HStack {
@@ -250,6 +264,21 @@ struct ToolbarView: View {
             }
 
             if #available(macOS 26.0, *) {
+                Button(action: onStopWallpaper) {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.glass)
+                .help(L.stopWallpaper)
+            } else {
+                Button(action: onStopWallpaper) {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 16))
+                }
+                .help(L.stopWallpaper)
+            }
+
+            if #available(macOS 26.0, *) {
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gear")
                         .font(.system(size: 16))
@@ -260,6 +289,26 @@ struct ToolbarView: View {
                     Image(systemName: "gear")
                         .font(.system(size: 16))
                 }
+            }
+        }
+    }
+}
+
+struct SteamLoginStatusBadge: View {
+    let text: String
+    let isChecking: Bool
+
+    var body: some View {
+        Group {
+            if isChecking {
+                ProgressView()
+                    .controlSize(.small)
+            } else if !text.isEmpty {
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
     }
@@ -492,6 +541,12 @@ struct SettingsView: View {
     @ObservedObject var viewModel: WallpaperViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showFolderPicker = false
+    @State private var workshopInput = ""
+    @State private var workshopStatus = ""
+    @State private var steamLoginStatus = ""
+    @State private var steamPassword = ""
+    @State private var isImportingWorkshop = false
+    @AppStorage(UserDefaultsKeys.steamUsername) var steamUsername = ""
     @AppStorage(UserDefaultsKeys.scaleMode) var scaleMode: Int = 0
     @State private var localMinutes: Int = 60
     @State private var isShowingView = true
@@ -525,6 +580,83 @@ struct SettingsView: View {
                             }
                             
                             
+                        }
+                    }
+
+                    Divider()
+
+	                    SettingRow(title: L.steamWorkshop) {
+	                        VStack(alignment: .leading, spacing: 8) {
+	                            HStack(alignment: .center, spacing: 8) {
+		                                VStack(alignment: .leading, spacing: 6) {
+	                                        HStack(spacing: 6) {
+	                                            TextField(L.steamUsername, text: $steamUsername)
+	                                                .textFieldStyle(.roundedBorder)
+	                                                .frame(width: 160)
+
+	                                            SteamLoginStatusBadge(
+	                                                text: viewModel.steamLoginStatusText,
+	                                                isChecking: viewModel.isCheckingSteamLogin
+	                                            )
+	                                            .frame(width: 64, alignment: .leading)
+	                                        }
+
+		                                    SecureField(L.steamPassword, text: $steamPassword)
+		                                        .textFieldStyle(.roundedBorder)
+		                                        .frame(width: 230)
+		                                }
+
+	                                Button(L.steamLogin) {
+	                                    openSteamLoginTerminal()
+	                                }
+	                                .frame(width: 74, height: 52)
+	                                .disabled(
+	                                    steamUsername.trimmingCharacters(
+	                                        in: .whitespacesAndNewlines
+	                                    ).isEmpty || steamPassword.isEmpty
+	                                )
+		                            }
+
+                            HStack {
+                                TextField(L.workshopPlaceholder, text: $workshopInput)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 230)
+
+                                Button {
+                                    importWorkshopItem()
+                                } label: {
+                                    if isImportingWorkshop {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Text(L.importWorkshop)
+                                    }
+                                }
+                                .disabled(
+                                    isImportingWorkshop
+                                        || workshopInput.trimmingCharacters(
+                                            in: .whitespacesAndNewlines
+                                        ).isEmpty
+                                )
+                            }
+
+                            if !workshopStatus.isEmpty {
+                                Text(workshopStatus)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(width: 320, alignment: .leading)
+                            }
+
+                            if !steamLoginStatus.isEmpty {
+                                Text(steamLoginStatus)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(width: 320, alignment: .leading)
+                            }
                         }
                     }
 
@@ -821,6 +953,32 @@ struct SettingsView: View {
             NSWorkspace.shared.open(url)
         }
     }
+
+    private func importWorkshopItem() {
+        isImportingWorkshop = true
+        workshopStatus = L.importingWorkshop
+
+        Task {
+            do {
+                let output = try await viewModel.importWorkshopItem(workshopInput)
+                workshopStatus = output.isEmpty ? L.workshopImported : output
+            } catch {
+                workshopStatus = error.localizedDescription
+            }
+            isImportingWorkshop = false
+        }
+    }
+
+    private func openSteamLoginTerminal() {
+        steamLoginStatus = L.openingSteamLogin
+
+        do {
+            try SteamLoginTerminal(username: steamUsername, password: steamPassword).open()
+            steamLoginStatus = L.steamLoginTerminalOpened
+        } catch {
+            steamLoginStatus = error.localizedDescription
+        }
+    }
 }
 
 // MARK: - Setting Row
@@ -848,6 +1006,259 @@ struct VideoItem: Identifiable {
 
     func loadThumbnail() -> NSImage? {
         return ThumbnailCache.shared.image(for: thumbnailPath)
+    }
+}
+
+// MARK: - Workshop Import
+enum WorkshopImportError: LocalizedError {
+    case missingScript
+    case failed(status: Int32, output: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .missingScript:
+            return NSLocalizedString("Workshop import script was not found", comment: "")
+        case .failed(_, let output):
+            return output.isEmpty
+                ? NSLocalizedString("Workshop import failed", comment: "")
+                : output
+        }
+    }
+}
+
+struct WorkshopImporter {
+    let importFolder: String
+    let steamUsername: String?
+
+    func importItem(_ input: String) async throws -> String {
+        guard let scriptURL = findScriptURL() else {
+            throw WorkshopImportError.missingScript
+        }
+        let importFolder = importFolder
+        let steamUsername = steamUsername?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let appBundlePath = Bundle.main.bundlePath
+
+        return try await Task.detached(priority: .userInitiated) {
+            let process = Process()
+            let pipe = Pipe()
+            var environment = ProcessInfo.processInfo.environment
+
+            environment["WALLPAPERENGINE_IMPORT_DIR"] = importFolder
+            environment["WALLPAPERENGINE_IMPORT_MODE"] = "symlink"
+            environment["WALLPAPERENGINE_SKIP_PLAY"] = "1"
+            environment["WALLPAPERENGINE_APP"] = appBundlePath
+            if let steamUsername, !steamUsername.isEmpty {
+                environment["STEAM_USERNAME"] = steamUsername
+            }
+
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = [scriptURL.path, input]
+            process.environment = environment
+            process.standardOutput = pipe
+            process.standardError = pipe
+
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+
+            let output = String(data: data, encoding: .utf8) ?? ""
+            let summary = Self.summary(from: output)
+
+            guard process.terminationStatus == 0 else {
+                throw WorkshopImportError.failed(status: process.terminationStatus, output: summary)
+            }
+
+            return summary
+        }.value
+    }
+
+    private func findScriptURL() -> URL? {
+        let fileManager = FileManager.default
+        let sourceRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let candidates = [
+            Bundle.main.resourceURL?.appendingPathComponent(
+                "tools/download_import_play_workshop_item.sh"),
+            Bundle.main.resourceURL?.appendingPathComponent(
+                "download_import_play_workshop_item.sh"),
+            sourceRoot.appendingPathComponent("tools/download_import_play_workshop_item.sh"),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("tools/download_import_play_workshop_item.sh"),
+        ].compactMap { $0 }
+
+        return candidates.first { fileManager.fileExists(atPath: $0.path) }
+    }
+
+    nonisolated private static func summary(from output: String) -> String {
+        let lines = output
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        if let title = lines.last(where: { $0.hasPrefix("Title:") }) {
+            return title.replacingOccurrences(of: "Title:", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if let imported = lines.last(where: { $0.hasPrefix("Imported:") }) {
+            return URL(fileURLWithPath: imported.replacingOccurrences(of: "Imported:", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)).lastPathComponent
+        }
+
+        return lines.suffix(2).joined(separator: "\n")
+    }
+}
+
+enum SteamLoginTerminalError: LocalizedError {
+    case missingScript
+    case failedToOpen
+
+    var errorDescription: String? {
+        switch self {
+        case .missingScript:
+            return NSLocalizedString("Steam login script was not found", comment: "")
+        case .failedToOpen:
+            return NSLocalizedString("Could not open Terminal", comment: "")
+        }
+    }
+}
+
+struct SteamLoginStatusChecker {
+    static func isLoggedIn(username: String) async -> Bool {
+        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedUsername.isEmpty, let steamcmdURL = findSteamcmdURL() else {
+            return false
+        }
+
+        return await Task.detached(priority: .utility) {
+            let process = Process()
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+
+            process.executableURL = steamcmdURL
+            process.arguments = ["+login", trimmedUsername, "+quit"]
+            process.standardInput = FileHandle.nullDevice
+            process.standardOutput = outputPipe
+            process.standardError = errorPipe
+
+            do {
+                try process.run()
+            } catch {
+                return false
+            }
+
+            let timeout = DispatchWorkItem {
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+            DispatchQueue.global(qos: .utility).asyncAfter(
+                deadline: .now() + 45,
+                execute: timeout
+            )
+
+            process.waitUntilExit()
+            timeout.cancel()
+
+            var outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            outputData.append(errorPipe.fileHandleForReading.readDataToEndOfFile())
+            let output = String(data: outputData, encoding: .utf8) ?? ""
+            let lowercasedOutput = output.lowercased()
+
+            guard process.terminationStatus == 0 else {
+                return false
+            }
+
+            if lowercasedOutput.contains("login failure")
+                || lowercasedOutput.contains("password")
+                || lowercasedOutput.contains("steam guard")
+                || lowercasedOutput.contains("failed") {
+                return false
+            }
+
+            return lowercasedOutput.contains("waiting for user info...ok")
+                || lowercasedOutput.contains("logged in ok")
+                || lowercasedOutput.contains("success")
+        }.value
+    }
+
+    private static func findSteamcmdURL() -> URL? {
+        let environmentPath = ProcessInfo.processInfo.environment["STEAMCMD"]
+        let candidates = [
+            environmentPath,
+            "/opt/homebrew/bin/steamcmd",
+            "/usr/local/bin/steamcmd",
+            NSHomeDirectory() + "/steamcmd/steamcmd.sh",
+        ].compactMap { $0 }
+
+        return candidates
+            .map(URL.init(fileURLWithPath:))
+            .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+}
+
+struct SteamLoginTerminal {
+    let username: String
+    let password: String
+
+    func open() throws {
+        guard let scriptURL = findScriptURL() else {
+            throw SteamLoginTerminalError.missingScript
+        }
+
+        let supportURL = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ).appendingPathComponent("WallpaperEngine", isDirectory: true)
+
+        try FileManager.default.createDirectory(
+            at: supportURL,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        let commandURL = supportURL.appendingPathComponent("steamcmd-login.command")
+        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let contents = """
+        #!/usr/bin/env bash
+        clear
+        COMMAND_FILE="${BASH_SOURCE[0]}"
+        rm -f "$COMMAND_FILE"
+        \(scriptURL.path.shellQuoted) \(trimmedUsername.shellQuoted) \(password.shellQuoted)
+        printf '\\nSteam login finished. You can close this window.\\n'
+        read -r -n 1 -s -p 'Press any key to close...'
+        printf '\\n'
+        """
+
+        try contents.write(to: commandURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: commandURL.path
+        )
+
+        guard NSWorkspace.shared.open(commandURL) else {
+            throw SteamLoginTerminalError.failedToOpen
+        }
+    }
+
+    private func findScriptURL() -> URL? {
+        let fileManager = FileManager.default
+        let sourceRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let candidates = [
+            Bundle.main.resourceURL?.appendingPathComponent("tools/login_steamcmd.sh"),
+            sourceRoot.appendingPathComponent("tools/login_steamcmd.sh"),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("tools/login_steamcmd.sh"),
+        ].compactMap { $0 }
+
+        return candidates.first { fileManager.fileExists(atPath: $0.path) }
+    }
+}
+
+extension String {
+    var shellQuoted: String {
+        "'\(replacingOccurrences(of: "'", with: "'\\''"))'"
     }
 }
 
@@ -924,6 +1335,8 @@ class WallpaperViewModel: ObservableObject {
     @Published var pauseOnAppFocus: Bool = true
     @Published var volume: Double = 50.0
     @Published var vinttageBar: Bool = true
+    @Published var steamLoginStatusText: String = ""
+    @Published var isCheckingSteamLogin: Bool = false
 
     private var currentReloadID = UUID()
     private let reloadIDLock = NSLock()
@@ -1015,6 +1428,30 @@ class WallpaperViewModel: ObservableObject {
         engine.startWallpaper(withPath: video.path, onDisplays: arr)
     }
 
+    func stopWallpaper() {
+        engine.killAllDaemons()
+    }
+
+    func checkSteamLoginStatus() {
+        let username = defaults.string(forKey: UserDefaultsKeys.steamUsername)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        guard !username.isEmpty else {
+            steamLoginStatusText = ""
+            isCheckingSteamLogin = false
+            return
+        }
+
+        isCheckingSteamLogin = true
+        steamLoginStatusText = ""
+
+        Task {
+            let isLoggedIn = await SteamLoginStatusChecker.isLoggedIn(username: username)
+            self.steamLoginStatusText = isLoggedIn ? "OK" : "Login"
+            self.isCheckingSteamLogin = false
+        }
+    }
+
     func clearCache() {
         engine.clearCache()
         ThumbnailCache.shared.clearCache()
@@ -1029,6 +1466,31 @@ class WallpaperViewModel: ObservableObject {
 
     func optimizeVideos() {
         engine.generateStaticWallpapers(forFolder: folderPath) {}
+    }
+
+    func importWorkshopItem(_ input: String) async throws -> String {
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        var targetFolder = folderPath
+
+        if targetFolder.isEmpty {
+            targetFolder = engine.getFolderPath()
+            folderPath = targetFolder
+        }
+
+        try FileManager.default.createDirectory(
+            atPath: targetFolder,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        engine.selectFolder(targetFolder)
+        let steamUsername = defaults.string(forKey: UserDefaultsKeys.steamUsername)
+        let output = try await WorkshopImporter(
+            importFolder: targetFolder,
+            steamUsername: steamUsername
+        ).importItem(trimmedInput)
+        reloadContent()
+        return output
     }
 
     private func getDisplayName(for id: CGDirectDisplayID) -> String {

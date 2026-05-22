@@ -1,17 +1,21 @@
 
 ![Status: Paused](https://img.shields.io/badge/Project_Status-Paused_Until_Aug_2026-red?style=for-the-badge)
 
-# LiveWallpaper App for MacOS 14+
+# WallpaperEngine App for MacOS 14+
 
 **Languages:** English | [简体中文](README.zh-Hans.md)
 
 ![Roller](./asset/livewall.png)
 
-This is an open-source live wallpaper application for MacOS 14+
+This is an open-source live wallpaper application for MacOS 14+.
+
+## Project Goal
+
+This project aims to build a Wallpaper Engine-like experience on macOS, using WallpaperEngine as the foundation. Wallpaper assets are expected to come from the Steam Wallpaper Engine Workshop.
 
 ## Install using brew
 
-Run this on terminal `brew tap thusvill/livewallpaper && brew install --cask livewallpaper`
+Run this on terminal `brew tap thusvill/wallpaperengine && brew install --cask wallpaperengine`
 
 ## Installation(Compile from source)
 - macOS 14+
@@ -19,18 +23,18 @@ Run this on terminal `brew tap thusvill/livewallpaper && brew install --cask liv
 - Xcode
 - Cmake
   
-Run this: `git clone https://github.com/thusvill/LiveWallpaperMacOS.git && cd LiveWallpaperMacOS && mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)`
+Run this: `git clone https://github.com/thusvill/WallpaperEngine.git && cd WallpaperEngine && mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)`
 
 
 ## Guide for DMG Installation
 
 > [!IMPORTANT]
-> ## Fix “LiveWallpaper.app” is corrupted and cannot be opened. It is recommended that you move the object to the recycle bin.
+> ## Fix “WallpaperEngine.app” is corrupted and cannot be opened. It is recommended that you move the object to the recycle bin.
 > After you install the app in Application folder you have to bypass Gatekeeper to run this since I don't want to pay apple for opensource apps.
 > 
 > This will solve the occupation issue
 > 
-> `xattr -d com.apple.quarantine /Applications/LiveWallpaper.app` 
+> `xattr -d com.apple.quarantine /Applications/WallpaperEngine.app` 
 
 Click the "OpenInFinder" button and it'll open a folder, you can place wallpapers in it.
 
@@ -54,13 +58,13 @@ Click the "OpenInFinder" button and it'll open a folder, you can place wallpaper
 
 Post bugs with result of following command.
 
- `/Applications/LiveWallpaper.app/Contents/MacOS/LiveWallpaper` 
+ `/Applications/WallpaperEngine.app/Contents/MacOS/WallpaperEngine` 
 
 ## Gallery
 
 > ![Application](./asset/application.png)
 
-> ## This is a static image, currently LiveWallpaper doesn't support videos on the lock screen.
+> ## This is a static image, currently WallpaperEngine doesn't support videos on the lock screen.
 > ![lockscreen](./asset/lockscreen.png)
 
 > ![settings](./asset/settings.png)

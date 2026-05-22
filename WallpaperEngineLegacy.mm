@@ -1,5 +1,5 @@
 /*
- * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
+ * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
  * Copyright (C) 2025 Bios thusvill
  *
  * This program is free software: you can redistribute it and/or modify
@@ -309,12 +309,12 @@ NSString *getFolderPath(void) {
 - (BOOL)enableAppAsLoginItem {
   NSString *agentPath = [NSHomeDirectory()
       stringByAppendingPathComponent:
-          @"Library/LaunchAgents/com.thusvill.LiveWallpaper.plist"];
+          @"Library/LaunchAgents/uk.coldt.WallpaperEngine.plist"];
 
   NSString *execPath = [[NSBundle mainBundle] executablePath];
 
   NSDictionary *plist = @{
-    @"Label" : @"com.thusvill.LiveWallpaper",
+    @"Label" : @"uk.coldt.WallpaperEngine",
     @"ProgramArguments" : @[ execPath ],
     @"RunAtLoad" : @YES,
     @"KeepAlive" : @NO
@@ -348,7 +348,7 @@ NSString *getFolderPath(void) {
 
 - (IBAction)addLoginItem:(id)sender {
   NSAlert *alert = [[NSAlert alloc] init];
-  [alert setMessageText:@"Start LiveWallpaper at login?"];
+  [alert setMessageText:@"Start WallpaperEngine at login?"];
   [alert addButtonWithTitle:@"Yes"];
   [alert addButtonWithTitle:@"No"];
   NSModalResponse response = [alert runModal];
@@ -365,7 +365,7 @@ NSString *getFolderPath(void) {
       [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
 
   if (!bundleName || bundleName.length == 0) {
-    bundleName = @"LiveWallpaper";
+    bundleName = @"WallpaperEngine";
   }
   NSString *thumbnailPath = [systemCacheDir
       stringByAppendingPathComponent:[NSString
@@ -391,7 +391,7 @@ NSString *getFolderPath(void) {
       [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
 
   if (!bundleName || bundleName.length == 0) {
-    bundleName = @"LiveWallpaper";
+    bundleName = @"WallpaperEngine";
   }
   NSString *wallpapersPath = [systemCacheDir
       stringByAppendingPathComponent:[NSString
@@ -1345,7 +1345,7 @@ NSTextField *CreateLabel(NSString *string) {
   {
     NSString *agentPath = [NSHomeDirectory()
         stringByAppendingPathComponent:
-            @"Library/LaunchAgents/com.thusvill.LiveWallpaper.plist"];
+            @"Library/LaunchAgents/uk.coldt.WallpaperEngine.plist"];
     if (![[NSFileManager defaultManager] fileExistsAtPath:agentPath]) {
       LineModule *permissions = [[LineModule alloc] initWithFrame:NSZeroRect];
       permissions.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1464,7 +1464,7 @@ NSTextField *CreateLabel(NSString *string) {
 - (void)promptForLoginItem {
   NSString *agentPath = [NSHomeDirectory()
       stringByAppendingPathComponent:
-          @"Library/LaunchAgents/com.thusvill.LiveWallpaper.plist"];
+          @"Library/LaunchAgents/uk.coldt.WallpaperEngine.plist"];
   BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:agentPath];
   if (!exists) {
     NSAlert *alert = [[NSAlert alloc] init];
@@ -2103,9 +2103,9 @@ void launchDaemonOnScreen(NSString *videoPath, NSString *imagePath,
   NSTouchBar *touchBar = [[NSTouchBar alloc] init];
   touchBar.delegate = self;
   touchBar.defaultItemIdentifiers = @[
-    NSTouchBarItemIdentifierFlexibleSpace, @"com.livewallpaper.reload",
-    @"com.livewallpaper.selectfolder", @"com.livewallpaper.openfolder",
-    @"com.livewallpaper.settings", @"com.livewallpaper.volume",
+    NSTouchBarItemIdentifierFlexibleSpace, @"com.wallpaperengine.reload",
+    @"com.wallpaperengine.selectfolder", @"com.wallpaperengine.openfolder",
+    @"com.wallpaperengine.settings", @"com.wallpaperengine.volume",
     NSTouchBarItemIdentifierFlexibleSpace
   ];
   return touchBar;
@@ -2128,7 +2128,7 @@ void launchDaemonOnScreen(NSString *videoPath, NSString *imagePath,
 - (NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar
        makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
 
-  if ([identifier isEqualToString:@"com.livewallpaper.selectfolder"]) {
+  if ([identifier isEqualToString:@"com.wallpaperengine.selectfolder"]) {
     NSCustomTouchBarItem *item =
         [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
     NSButton *button =
@@ -2137,7 +2137,7 @@ void launchDaemonOnScreen(NSString *videoPath, NSString *imagePath,
                            action:@selector(selectWallpaperFolder:)];
     item.view = button;
     return item;
-  } else if ([identifier isEqualToString:@"com.livewallpaper.openfolder"]) {
+  } else if ([identifier isEqualToString:@"com.wallpaperengine.openfolder"]) {
     NSCustomTouchBarItem *item =
         [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
     NSButton *button = [NSButton
@@ -2146,7 +2146,7 @@ void launchDaemonOnScreen(NSString *videoPath, NSString *imagePath,
                  action:@selector(openWallpaperFolder:)];
     item.view = button;
     return item;
-  } else if ([identifier isEqualToString:@"com.livewallpaper.reload"]) {
+  } else if ([identifier isEqualToString:@"com.wallpaperengine.reload"]) {
     NSCustomTouchBarItem *item =
         [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
     NSButton *button;
@@ -2164,7 +2164,7 @@ void launchDaemonOnScreen(NSString *videoPath, NSString *imagePath,
     }
     item.view = button;
     return item;
-  } else if ([identifier isEqualToString:@"com.livewallpaper.settings"]) {
+  } else if ([identifier isEqualToString:@"com.wallpaperengine.settings"]) {
     NSCustomTouchBarItem *item =
         [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
     NSButton *button =
@@ -2173,7 +2173,7 @@ void launchDaemonOnScreen(NSString *videoPath, NSString *imagePath,
                            action:@selector(showSettingsWindow:)];
     item.view = button;
     return item;
-  } else if ([identifier isEqualToString:@"com.livewallpaper.volume"]) {
+  } else if ([identifier isEqualToString:@"com.wallpaperengine.volume"]) {
 
     NSPopoverTouchBarItem *popoverItem =
         [[NSPopoverTouchBarItem alloc] initWithIdentifier:identifier];
@@ -2188,12 +2188,12 @@ void launchDaemonOnScreen(NSString *videoPath, NSString *imagePath,
     NSTouchBar *expandedTouchBar = [[NSTouchBar alloc] init];
     expandedTouchBar.delegate = self;
     expandedTouchBar.defaultItemIdentifiers =
-        @[ @"com.livewallpaper.volume.slider" ];
+        @[ @"com.wallpaperengine.volume.slider" ];
 
     popoverItem.popoverTouchBar = expandedTouchBar;
     self.volumePopoverItem = popoverItem;
     return popoverItem;
-  } else if ([identifier isEqualToString:@"com.livewallpaper.volume.slider"]) {
+  } else if ([identifier isEqualToString:@"com.wallpaperengine.volume.slider"]) {
     NSCustomTouchBarItem *item =
         [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 
@@ -2309,7 +2309,7 @@ void generateStaticWallpapersForFolderCallback(CFNotificationCenterRef center,
                            NSWindowStyleMaskResizable)
                   backing:NSBackingStoreBuffered
                     defer:NO];
-  [self.blurWindow setTitle:@"LiveWallpaper by Bios"];
+  [self.blurWindow setTitle:@"WallpaperEngine by Bios"];
   [self.blurWindow center];
   [self.blurWindow
       setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace];

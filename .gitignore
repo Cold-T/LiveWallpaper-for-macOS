@@ -1,4 +1,4 @@
-LiveWallpaperApp
+WallpaperEngineApp
 build
 build/**
 build-xcode
@@ -15,9 +15,26 @@ BrewReleases/**
 .vscode/**
 .DS_Store
 project.yml
-LiveWallpaper.icon/Assets/roller 2.svg
-LiveWallpaper.icon/icon.json
-LiveWallpaper.icon/icon.json
-LiveWallpaper.icon/Assets/roller 2.svg
-/LiveWallpaper.icon
+WallpaperEngine.icon/Assets/roller 2.svg
+WallpaperEngine.icon/icon.json
+WallpaperEngine.icon/icon.json
+WallpaperEngine.icon/Assets/roller 2.svg
+/WallpaperEngine.icon
 /AppIcon.icon
+
+# Local secrets and Steam session/download state
+.env
+.env.*
+!.env.example
+cookies/
+cookies/**
+SteamWorkshop/
+SteamWorkshop/**
+steamcmd/
+steamcmd/**
+steamapps/
+steamapps/**
+userdata/
+userdata/**
+config/
+config/**

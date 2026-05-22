@@ -1,5 +1,5 @@
 /*
- * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
+ * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
  * Copyright (C) 2025 Bios thusvill
  *
  * This program is free software: you can redistribute it and/or modify
@@ -530,7 +530,7 @@ static void terminateWallpaperDaemonCallback(CFNotificationCenterRef center,
       continue;
     }
 
-    if ([ownerName isEqualToString:@"LiveWallpaper"] ||
+    if ([ownerName isEqualToString:@"WallpaperEngine"] ||
         [ownerName isEqualToString:@"wallpaperdaemon"]) {
       continue;
     }
@@ -770,7 +770,7 @@ static void terminateWallpaperDaemonCallback(CFNotificationCenterRef center,
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
     allowedBundleIDs = [NSSet
-        setWithArray:@[ @"com.apple.finder", @"com.thusvill.LiveWallpaper" ]];
+        setWithArray:@[ @"com.apple.finder", @"uk.coldt.WallpaperEngine" ]];
   });
 
   return [allowedBundleIDs containsObject:front.bundleIdentifier];

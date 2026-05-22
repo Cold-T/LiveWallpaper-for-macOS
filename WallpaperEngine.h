@@ -1,5 +1,5 @@
 /*
- * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
+ * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
  * Copyright (C) 2025 Bios thusvill
  *
  * This program is free software: you can redistribute it and/or modify
@@ -87,6 +87,7 @@
 - (void)checkWallpapers;
 
 -(void) nextWallpaper;
+-(void) startLastWallpaper;
 
 -(void) startPlaylist;
 - (void)startWallpaperRotation;
@@ -97,6 +98,7 @@
 
 @property(nonatomic, assign) BOOL generatingImages;
 @property(nonatomic, assign) BOOL generatingThumbImages;
+@property(nonatomic, assign, getter=isWallpaperRunning) BOOL wallpaperRunning;
 @property(nonatomic, strong) NSString *currentVideoPath;
 @property(nonatomic, assign) std::list<pid_t> daemonPIDs;
 @property(nonatomic, assign) NSMutableArray<NSString* >* wallpaperList;

@@ -1,5 +1,5 @@
 /*
- * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
+ * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
  * Copyright (C) 2025 Bios thusvill
  *
  * This program is free software: you can redistribute it and/or modify
@@ -35,6 +35,14 @@ extern char **environ;
 
 static NSString *folderPath = nil;
 
+static NSString *OriginalDesktopWallpaperKeyForUUID(NSString *displayUUID) {
+  return [@"WallpaperEngineOriginalDesktopImage." stringByAppendingString:displayUUID ?: @"main"];
+}
+
+static NSString *OriginalDesktopWallpaperUUIDsKey() {
+  return @"WallpaperEngineOriginalDesktopImageUUIDs";
+}
+
 @implementation WallpaperEngine {
 @private
   dispatch_queue_t _wallpaperQueue;
@@ -59,9 +67,9 @@ static NSString *folderPath = nil;
     _currentVideoPath = nil;
     _daemonPIDs = std::list<pid_t>();
 
-    _wallpaperQueue = dispatch_queue_create("com.livewallpaper.wallpaperQueue",
+    _wallpaperQueue = dispatch_queue_create("com.wallpaperengine.wallpaperQueue",
                                             DISPATCH_QUEUE_CONCURRENT);
-    _thumbnailQueue = dispatch_queue_create("com.livewallpaper.thumbnailQueue",
+    _thumbnailQueue = dispatch_queue_create("com.wallpaperengine.thumbnailQueue",
                                             DISPATCH_QUEUE_SERIAL);
 
     _wallpaperSemaphore = dispatch_semaphore_create(2);
@@ -232,7 +240,7 @@ static NSString *folderPath = nil;
       [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
 
   if (!bundleName || bundleName.length == 0) {
-    bundleName = @"LiveWallpaper";
+    bundleName = @"WallpaperEngine";
   }
 
   NSString *thumbnailPath = [systemCacheDir
@@ -259,7 +267,7 @@ static NSString *folderPath = nil;
       [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
 
   if (!bundleName || bundleName.length == 0) {
-    bundleName = @"LiveWallpaper";
+    bundleName = @"WallpaperEngine";
   }
 
   NSString *wallpapersPath = [systemCacheDir
@@ -903,12 +911,12 @@ static NSString *folderPath = nil;
 - (BOOL)enableAppAsLoginItem {
   NSString *agentPath = [NSHomeDirectory()
       stringByAppendingPathComponent:
-          @"Library/LaunchAgents/com.thusvill.LiveWallpaper.plist"];
+          @"Library/LaunchAgents/uk.coldt.WallpaperEngine.plist"];
 
   NSString *execPath = [[NSBundle mainBundle] executablePath];
 
   NSDictionary *plist = @{
-    @"Label" : @"com.thusvill.LiveWallpaper",
+    @"Label" : @"uk.coldt.WallpaperEngine",
     @"ProgramArguments" : @[ execPath ],
     @"RunAtLoad" : @YES,
     @"KeepAlive" : @NO
@@ -999,6 +1007,97 @@ static NSString *folderPath = nil;
   [self startWallpaperWithPath:videoPath onDisplays:@[ @(displayID) ]];
 }
 
+- (NSScreen *)screenForDisplayID:(CGDirectDisplayID)displayID {
+  for (NSScreen *screen in NSScreen.screens) {
+    NSNumber *screenNumber = screen.deviceDescription[@"NSScreenNumber"];
+    if (screenNumber && (CGDirectDisplayID)screenNumber.unsignedIntValue == displayID) {
+      return screen;
+    }
+  }
+  return nil;
+}
+
+- (void)rememberDesktopWallpaperForDisplayID:(CGDirectDisplayID)displayID {
+  NSScreen *screen = [self screenForDisplayID:displayID];
+  if (!screen) {
+    return;
+  }
+
+  std::string uuidString = DisplayUUIDFromID(displayID);
+  NSString *displayUUID = uuidString.empty() ? nil : [NSString stringWithUTF8String:uuidString.c_str()];
+  if (!displayUUID.length) {
+    return;
+  }
+
+  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+  NSString *wallpaperKey = OriginalDesktopWallpaperKeyForUUID(displayUUID);
+  if ([defaults stringForKey:wallpaperKey].length > 0) {
+    return;
+  }
+
+  NSURL *desktopImageURL = [[NSWorkspace sharedWorkspace] desktopImageURLForScreen:screen];
+  if (!desktopImageURL.path.length) {
+    return;
+  }
+
+  [defaults setObject:desktopImageURL.path forKey:wallpaperKey];
+
+  NSMutableArray<NSString *> *storedUUIDs =
+      [[defaults stringArrayForKey:OriginalDesktopWallpaperUUIDsKey()] mutableCopy]
+      ?: [NSMutableArray array];
+  if (![storedUUIDs containsObject:displayUUID]) {
+    [storedUUIDs addObject:displayUUID];
+    [defaults setObject:storedUUIDs forKey:OriginalDesktopWallpaperUUIDsKey()];
+  }
+  [defaults synchronize];
+}
+
+- (void)restoreRememberedDesktopWallpapers {
+  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+  NSArray<NSString *> *storedUUIDs =
+      [defaults stringArrayForKey:OriginalDesktopWallpaperUUIDsKey()];
+  if (storedUUIDs.count == 0) {
+    return;
+  }
+
+  NSMutableArray<NSString *> *remainingUUIDs = [NSMutableArray array];
+  for (NSString *displayUUID in storedUUIDs) {
+    NSString *wallpaperKey = OriginalDesktopWallpaperKeyForUUID(displayUUID);
+    NSString *wallpaperPath = [defaults stringForKey:wallpaperKey];
+    if (!wallpaperPath.length) {
+      [defaults removeObjectForKey:wallpaperKey];
+      continue;
+    }
+
+    CGDirectDisplayID displayID = DisplayIDFromUUID(std::string([displayUUID UTF8String]));
+    NSScreen *screen = [self screenForDisplayID:displayID];
+    if (!screen) {
+      [remainingUUIDs addObject:displayUUID];
+      continue;
+    }
+
+    NSURL *wallpaperURL = [NSURL fileURLWithPath:wallpaperPath];
+    NSError *error = nil;
+    BOOL restored = [[NSWorkspace sharedWorkspace] setDesktopImageURL:wallpaperURL
+                                                            forScreen:screen
+                                                              options:@{}
+                                                                error:&error];
+    if (restored) {
+      [defaults removeObjectForKey:wallpaperKey];
+    } else {
+      [remainingUUIDs addObject:displayUUID];
+      NSLog(@"Failed to restore desktop wallpaper for %@: %@", displayUUID, error);
+    }
+  }
+
+  if (remainingUUIDs.count > 0) {
+    [defaults setObject:remainingUUIDs forKey:OriginalDesktopWallpaperUUIDsKey()];
+  } else {
+    [defaults removeObjectForKey:OriginalDesktopWallpaperUUIDsKey()];
+  }
+  [defaults synchronize];
+}
+
 - (void)launchDaemonOnScreen:(NSString *)videoPath
                    imagePath:(NSString *)imagePath
                    displayID:(CGDirectDisplayID)displayID {
@@ -1028,6 +1127,8 @@ static NSString *folderPath = nil;
         unsignedIntValue];
     NSLog(@"Display ID changed to %u", displayID);
   }
+
+  [self rememberDesktopWallpaperForDisplayID:displayID];
   
 
     std::string display = DisplayUUIDFromID(displayID);
@@ -1048,6 +1149,7 @@ static NSString *folderPath = nil;
     NSLog(@"Failed to launch daemon: %d", status);
   } else {
     _daemonPIDs.push_back(pid);
+    self.wallpaperRunning = YES;
     NSLog(@"Launched daemon with PID: %d", pid);
   }
   SetWallpaperDisplay(pid, displayID, std::string([videoPath UTF8String]),
@@ -1055,6 +1157,8 @@ static NSString *folderPath = nil;
 }
 
 - (void)killAllDaemons {
+  [self restoreRememberedDesktopWallpapers];
+
   NSTask *killTask = [[NSTask alloc] init];
   killTask.launchPath = @"/usr/bin/killall";
   killTask.arguments = @[ @"wallpaperdaemon" ];
@@ -1072,6 +1176,7 @@ static NSString *folderPath = nil;
     kill(pid, SIGTERM);
   }
   _daemonPIDs.clear();
+  self.wallpaperRunning = NO;
 
   CFNotificationCenterPostNotification(
       CFNotificationCenterGetDarwinNotifyCenter(),
@@ -1100,7 +1205,7 @@ static NSString *folderPath = nil;
              URLsForDirectory:NSCachesDirectory
                     inDomains:NSUserDomainMask].firstObject path];
 
-    path = [cacheDir stringByAppendingPathComponent:@"LiveWallpaper"];
+    path = [cacheDir stringByAppendingPathComponent:@"WallpaperEngine"];
 
     [defaults setObject:path forKey:@"WallpaperFolder"];
     [defaults synchronize];
@@ -1168,6 +1273,24 @@ static NSString *folderPath = nil;
         
     }else if(_rotationType == 2){
         [self randomWallpapersLid];
+    }
+}
+
+-(void) startLastWallpaper{
+    NSString *videoPath = self.currentVideoPath;
+    if (!videoPath.length) {
+        videoPath = [[NSUserDefaults standardUserDefaults] stringForKey:@"LastWallpaperPath"];
+    }
+    if (!videoPath.length) {
+        for (Display display : displays) {
+            if (!display.videoPath.empty()) {
+                videoPath = [NSString stringWithUTF8String:display.videoPath.c_str()];
+                break;
+            }
+        }
+    }
+    if (videoPath.length) {
+        [self startWallpaperWithPath:videoPath onDisplays:@[]];
     }
 }
 - (void)stopWallpaperRotation {
@@ -1283,4 +1406,3 @@ CGImageRef CompressImageWithQuality(CGImageRef image, float qualityFactor) {
       [NSBitmapImageRep imageRepWithData:compressedData];
   return [compressedRep CGImage];
 }
-

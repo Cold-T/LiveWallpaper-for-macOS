@@ -12,10 +12,10 @@
 <string>livewall</string>
 
   <key>CFBundleIdentifier</key>
-  <string>com.thusvill.LiveWallpaper</string>
+  <string>uk.coldt.WallpaperEngine</string>
 
   <key>CFBundleName</key>
-  <string>LiveWallpaper</string>
+  <string>WallpaperEngine</string>
 
   <key>CFBundlePackageType</key>
   <string>APPL</string>

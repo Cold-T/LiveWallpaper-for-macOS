@@ -1,7 +1,7 @@
 > [!NOTE]
 > ## 我将把 Objective C++ 的 UI 逐步改造成 SwiftUI，但 `daemon` 不会改变。
 
-# macOS 14+ 动态壁纸应用 LiveWallpaper
+# macOS 14+ 动态壁纸应用 WallpaperEngine
 
 **语言：** [English](README.md) | 简体中文
 
@@ -9,9 +9,13 @@
 
 这是一个面向 macOS 14+ 的开源动态壁纸应用。
 
+## 项目目标
+
+本项目的目标是在 macOS 上实现一个类似 Wallpaper Engine 的动态壁纸体验，基础项目为 WallpaperEngine。壁纸资源预计来自 Steam 的 Wallpaper Engine Workshop。
+
 ## 使用 Homebrew 安装
 
-在终端运行：`brew tap thusvill/livewallpaper && brew install --cask livewallpaper`
+在终端运行：`brew tap thusvill/wallpaperengine && brew install --cask wallpaperengine`
 
 ## 从源码编译安装
 
@@ -21,17 +25,17 @@
 - CMake
 
 运行：
-`git clone https://github.com/thusvill/LiveWallpaperMacOS.git && cd LiveWallpaperMacOS && mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)`
+`git clone https://github.com/thusvill/WallpaperEngine.git && cd WallpaperEngine && mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)`
 
 ## DMG 安装指南
 
 > [!IMPORTANT]
-> ## 修复 “LiveWallpaper.app” 已损坏，无法打开。建议你将该对象移到废纸篓。
+> ## 修复 “WallpaperEngine.app” 已损坏，无法打开。建议你将该对象移到废纸篓。
 > 将应用安装到 Applications 文件夹后，你需要绕过 Gatekeeper 才能运行（因为我不想为开源应用给 Apple 付费）。
 >
 > 这也会解决占用问题：
 >
-> `xattr -d com.apple.quarantine /Applications/LiveWallpaper.app`
+> `xattr -d com.apple.quarantine /Applications/WallpaperEngine.app`
 
 点击 “OpenInFinder” 按钮会打开一个文件夹，你可以把壁纸文件放进去。
 
@@ -54,7 +58,7 @@
 
 > ![Application](./asset/application.png)
 
-> ## 这是静态图片，目前 LiveWallpaper 不支持锁屏播放视频。
+> ## 这是静态图片，目前 WallpaperEngine 不支持锁屏播放视频。
 > ![lockscreen](./asset/lockscreen.png)
 
 > ![settings](./asset/settings.png)
