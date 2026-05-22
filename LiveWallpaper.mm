@@ -22,12 +22,9 @@
 #include "SaveSystem.h"
 #import <CoreGraphics/CoreGraphics.h>
 #import <IOKit/graphics/IOGraphicsLib.h>
-#include <filesystem>
 #import <mach/mach.h>
 #include <spawn.h>
 #include <unistd.h>
-
-namespace fs = std::filesystem;
 
 extern char **environ;
 
@@ -962,22 +959,19 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
   [defaults setObject:videoPath forKey:@"LastWallpaperPath"];
   [defaults synchronize];
 
-  const char *videoPathCStr = [videoPath UTF8String];
-  std::string videoPathStr(videoPathCStr);
-  std::filesystem::path p(videoPathStr);
-  std::string videoName = p.stem().string();
-
-  if (!fs::exists(videoPathStr)) {
+  NSFileManager *fm = [NSFileManager defaultManager];
+  if (![fm fileExistsAtPath:videoPath]) {
     NSLog(@"Video file does not exist: %@", videoPath);
     return;
   }
 
+  NSString *videoName =
+      [[videoPath lastPathComponent] stringByDeletingPathExtension];
   NSString *imageFilename =
-      [NSString stringWithFormat:@"%s.png", videoName.c_str()];
+      [videoName stringByAppendingPathExtension:@"png"];
   NSString *imagePath = [[self staticWallpaperCachePath]
       stringByAppendingPathComponent:imageFilename];
 
-  NSFileManager *fm = [NSFileManager defaultManager];
   if (![fm fileExistsAtPath:imagePath] && !_generatingImages) {
     NSLog(@"Static wallpaper not found, generating for: %@", videoPath);
     [self generateStaticWallpapersForFolder:[self getFolderPath]

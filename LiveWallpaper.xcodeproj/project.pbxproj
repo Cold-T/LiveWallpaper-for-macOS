@@ -22,12 +22,6 @@
 		04E057192EEAB3EE00F90A44 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E0565F2EEAB3EE00F90A44 /* ContentView.swift */; };
 		04E0571C2EEAB3EE00F90A44 /* SaveSystem.mm in Sources */ = {isa = PBXBuildFile; fileRef = 04E0566C2EEAB3EE00F90A44 /* SaveSystem.mm */; };
 		04E057382EEAB3EE00F90A44 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04E0565D2EEAB3EE00F90A44 /* Assets.xcassets */; };
-		04E090002F52100100F90A44 /* en.lproj in Resources */ = {isa = PBXBuildFile; fileRef = 04E090012F52100100F90A44 /* en.lproj */; };
-		04E090022F52100100F90A44 /* zh-Hans.lproj in Resources */ = {isa = PBXBuildFile; fileRef = 04E090032F52100100F90A44 /* zh-Hans.lproj */; };
-		04F910012F52000100D4C0DE /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 04F910002F52000100D4C0DE /* LICENSE */; };
-		04F910032F52000100D4C0DE /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 04F910022F52000100D4C0DE /* NOTICE */; };
-		04F910052F52000100D4C0DE /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = 04F910042F52000100D4C0DE /* THIRD_PARTY_NOTICES.md */; };
-		04F910072F52000100D4C0DE /* CONTRIBUTORS.md in Resources */ = {isa = PBXBuildFile; fileRef = 04F910062F52000100D4C0DE /* CONTRIBUTORS.md */; };
 		04E057742EEAB43200F90A44 /* emitterstate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E0574A2EEAB43200F90A44 /* emitterstate.cpp */; };
 		04E057752EEAB43200F90A44 /* nodebuilder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E057562EEAB43200F90A44 /* nodebuilder.cpp */; };
 		04E057762EEAB43200F90A44 /* ostream_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E0575A2EEAB43200F90A44 /* ostream_wrapper.cpp */; };
@@ -60,8 +54,14 @@
 		04E057912EEAB43200F90A44 /* null.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E057592EEAB43200F90A44 /* null.cpp */; };
 		04E057922EEAB43200F90A44 /* scanner.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E057622EEAB43200F90A44 /* scanner.cpp */; };
 		04E057932EEAB43200F90A44 /* directives.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E057452EEAB43200F90A44 /* directives.cpp */; };
+		04E090002F52100100F90A44 /* en.lproj in Resources */ = {isa = PBXBuildFile; fileRef = 04E090012F52100100F90A44 /* en.lproj */; };
+		04E090022F52100100F90A44 /* zh-Hans.lproj in Resources */ = {isa = PBXBuildFile; fileRef = 04E090032F52100100F90A44 /* zh-Hans.lproj */; };
 		04F816E02EEBE3FB00CFB473 /* DisplayObjc.mm in Sources */ = {isa = PBXBuildFile; fileRef = 04F816DF2EEBE3FB00CFB473 /* DisplayObjc.mm */; };
 		04F900012F50C00100D4C0DE /* tools in Resources */ = {isa = PBXBuildFile; fileRef = 04F900002F50C00100D4C0DE /* tools */; };
+		04F910012F52000100D4C0DE /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 04F910002F52000100D4C0DE /* LICENSE */; };
+		04F910032F52000100D4C0DE /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 04F910022F52000100D4C0DE /* NOTICE */; };
+		04F910052F52000100D4C0DE /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = 04F910042F52000100D4C0DE /* THIRD_PARTY_NOTICES.md */; };
+		04F910072F52000100D4C0DE /* CONTRIBUTORS.md in Resources */ = {isa = PBXBuildFile; fileRef = 04F910062F52000100D4C0DE /* CONTRIBUTORS.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -84,7 +84,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		048ABDDC2F4C1652001393B0 /* asset/AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = asset/AppIcon.icon; sourceTree = SOURCE_ROOT; };
 		04E0070A2EEA738C00F90A44 /* LiveWallpaper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiveWallpaper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04E055412EEA794C00F90A44 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		04E055432EEA795200F90A44 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
@@ -103,12 +102,6 @@
 		04E0566C2EEAB3EE00F90A44 /* SaveSystem.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SaveSystem.mm; sourceTree = SOURCE_ROOT; };
 		04E056EF2EEAB3EE00F90A44 /* LiveWallpaper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveWallpaper.h; sourceTree = SOURCE_ROOT; };
 		04E056F02EEAB3EE00F90A44 /* LiveWallpaper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = LiveWallpaper.mm; sourceTree = SOURCE_ROOT; };
-		04E090012F52100100F90A44 /* en.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = en.lproj; sourceTree = SOURCE_ROOT; };
-		04E090032F52100100F90A44 /* zh-Hans.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "zh-Hans.lproj"; sourceTree = SOURCE_ROOT; };
-		04F910002F52000100D4C0DE /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = SOURCE_ROOT; };
-		04F910022F52000100D4C0DE /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE; sourceTree = SOURCE_ROOT; };
-		04F910042F52000100D4C0DE /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = SOURCE_ROOT; };
-		04F910062F52000100D4C0DE /* CONTRIBUTORS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CONTRIBUTORS.md; sourceTree = SOURCE_ROOT; };
 		04E057392EEAB43200F90A44 /* dragonbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dragonbox.h; sourceTree = "<group>"; };
 		04E0573A2EEAB43200F90A44 /* graphbuilder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = graphbuilder.cpp; sourceTree = "<group>"; };
 		04E0573B2EEAB43200F90A44 /* graphbuilderadapter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = graphbuilderadapter.h; sourceTree = "<group>"; };
@@ -281,9 +274,15 @@
 		04E058942EEAB54E00F90A44 /* SECURITY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SECURITY.md; sourceTree = "<group>"; };
 		04E058952EEAB54E00F90A44 /* yaml-cpp-config.cmake.in */ = {isa = PBXFileReference; lastKnownFileType = text; path = "yaml-cpp-config.cmake.in"; sourceTree = "<group>"; };
 		04E058962EEAB54E00F90A44 /* yaml-cpp.pc.in */ = {isa = PBXFileReference; lastKnownFileType = text; path = "yaml-cpp.pc.in"; sourceTree = "<group>"; };
+		04E090012F52100100F90A44 /* en.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = en.lproj; sourceTree = SOURCE_ROOT; };
+		04E090032F52100100F90A44 /* zh-Hans.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "zh-Hans.lproj"; sourceTree = SOURCE_ROOT; };
 		04F816DE2EEBE3FB00CFB473 /* DisplayObjc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DisplayObjc.h; sourceTree = SOURCE_ROOT; };
 		04F816DF2EEBE3FB00CFB473 /* DisplayObjc.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DisplayObjc.mm; sourceTree = SOURCE_ROOT; };
 		04F900002F50C00100D4C0DE /* tools */ = {isa = PBXFileReference; lastKnownFileType = folder; path = tools; sourceTree = SOURCE_ROOT; };
+		04F910002F52000100D4C0DE /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = SOURCE_ROOT; };
+		04F910022F52000100D4C0DE /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE; sourceTree = SOURCE_ROOT; };
+		04F910042F52000100D4C0DE /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = SOURCE_ROOT; };
+		04F910062F52000100D4C0DE /* CONTRIBUTORS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CONTRIBUTORS.md; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -329,7 +328,6 @@
 				04F910062F52000100D4C0DE /* CONTRIBUTORS.md */,
 				04E054BD2EEA76F600F90A44 /* Frameworks */,
 				04E0070B2EEA738C00F90A44 /* Products */,
-				048ABDDC2F4C1652001393B0 /* asset/AppIcon.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -925,8 +923,8 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/yaml-cpp/include";
-				INFOPLIST_KEY_CFBundleDisplayName = "LiveWallpaper";
-				INFOPLIST_KEY_CFBundleName = "LiveWallpaper";
+				INFOPLIST_KEY_CFBundleDisplayName = LiveWallpaper;
+				INFOPLIST_KEY_CFBundleName = LiveWallpaper;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "LiveWallpaper uses Apple Events to coordinate wallpaper playback and control its helper process.";
@@ -982,8 +980,8 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/yaml-cpp/include";
-				INFOPLIST_KEY_CFBundleDisplayName = "LiveWallpaper";
-				INFOPLIST_KEY_CFBundleName = "LiveWallpaper";
+				INFOPLIST_KEY_CFBundleDisplayName = LiveWallpaper;
+				INFOPLIST_KEY_CFBundleName = LiveWallpaper;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "LiveWallpaper uses Apple Events to coordinate wallpaper playback and control its helper process.";
