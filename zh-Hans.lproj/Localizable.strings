@@ -55,7 +55,7 @@
 "Steam login is required" = "请先登录";
 "Stop wallpaper" = "关闭壁纸";
 "Opening Terminal..." = "正在打开终端...";
-"Steam login terminal opened" = "登录窗口已打开，完成后我会自动检查。";
+"Continue in the popup" = "请在弹出的窗口中继续操作。";
 "Steam login script was not found" = "没找到 Steam 登录脚本。";
 "Could not open Terminal" = "没能打开终端。";
 

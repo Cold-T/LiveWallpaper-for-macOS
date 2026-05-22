@@ -192,7 +192,7 @@ enum L {
     static var steamLoginRequired: String { tr("Steam login is required") }
     static var stopWallpaper: String { tr("Stop wallpaper") }
     static var openingSteamLogin: String { tr("Opening Terminal...") }
-    static var steamLoginTerminalOpened: String { tr("Steam login terminal opened") }
+    static var continueInPopup: String { tr("Continue in the popup") }
 }
 
 // MARK: - UserDefaults Keys
@@ -289,7 +289,6 @@ struct ContentView: View {
     private func refreshContent() {
         viewModel.loadDisplays()
         viewModel.reloadContent()
-        viewModel.checkSteamLoginStatus()
     }
 }
 
@@ -1125,7 +1124,13 @@ struct SettingsView: View {
 
         do {
             try SteamLoginTerminal(username: steamUsername, password: steamPassword).open()
-            steamLoginStatus = L.steamLoginTerminalOpened
+            steamLoginStatus = L.continueInPopup
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 4 * 1_000_000_000)
+                if steamLoginStatus == L.continueInPopup {
+                    steamLoginStatus = ""
+                }
+            }
             viewModel.scheduleSteamLoginStatusChecks()
         } catch {
             steamLoginStatus = error.localizedDescription

@@ -3,7 +3,7 @@
 
 **Languages:** English | [简体中文](README.zh-Hans.md)
 
-![Roller](./asset/livewall.png)
+![LiveWallpaper](./Assets.xcassets/LiveWallpaperIcon.appiconset/icon_512x512.png)
 
 LiveWallpaper is an open-source live wallpaper app for macOS 14+.
 

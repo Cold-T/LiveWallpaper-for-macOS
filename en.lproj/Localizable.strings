@@ -55,7 +55,7 @@
 "Steam login is required" = "Please log in";
 "Stop wallpaper" = "Stop wallpaper";
 "Opening Terminal..." = "Opening Terminal...";
-"Steam login terminal opened" = "Login window opened. Finish it there, then I'll check.";
+"Continue in the popup" = "Continue in the popup.";
 "Steam login script was not found" = "I couldn't find the Steam login script.";
 "Could not open Terminal" = "I couldn't open Terminal.";
 

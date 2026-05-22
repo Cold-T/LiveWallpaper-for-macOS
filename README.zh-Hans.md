@@ -2,7 +2,7 @@
 
 **语言：** [English](README.md) | 简体中文
 
-![Roller](./asset/livewall.png)
+![LiveWallpaper](./Assets.xcassets/LiveWallpaperIcon.appiconset/icon_512x512.png)
 
 LiveWallpaper 是一个面向 macOS 14+ 的开源动态壁纸应用。
 
