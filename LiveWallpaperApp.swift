@@ -1,6 +1,7 @@
 /*
- * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
+ * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
  * Copyright (C) 2025 Bios thusvill
+ * Copyright (C) 2026 Cold-T
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +22,10 @@ import AppKit
 import ApplicationServices
 import ServiceManagement
 
-let sharedEngine = WallpaperEngine.shared()
+let sharedEngine = LiveWallpaper.shared()
 
 @main
-struct WallpaperEngineApp: App {
+struct LiveWallpaperApp: App {
     
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
@@ -51,13 +52,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            let statusIcon = NSImage(named: "WallpaperEngineStatusIcon")
+            let statusIcon = NSImage(named: "LiveWallpaperStatusIcon")
                 ?? NSImage(named: NSImage.applicationIconName)
-                ?? NSImage(systemSymbolName: "play.desktopcomputer", accessibilityDescription: "Wallpaper Engine")
+                ?? NSImage(systemSymbolName: "play.desktopcomputer", accessibilityDescription: "LiveWallpaper")
             statusIcon?.size = NSSize(width: 18, height: 18)
             statusIcon?.isTemplate = false
             button.image = statusIcon
-            button.toolTip = "Wallpaper Engine"
+            button.toolTip = "LiveWallpaper"
         }
         statusItem.menu = makeStatusMenu()
 
@@ -76,7 +77,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         
         window.center()
         window.contentView = NSHostingView(rootView: ContentView())
-        window.title = "Wallpaper Engine"
+        window.title = "LiveWallpaper"
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -98,7 +99,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func showWindow() {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        NotificationCenter.default.post(name: .wallpaperEngineShouldRefresh, object: nil)
+        NotificationCenter.default.post(name: .liveWallpaperShouldRefresh, object: nil)
         
     }
 

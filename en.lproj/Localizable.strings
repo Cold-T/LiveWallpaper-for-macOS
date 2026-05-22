@@ -1,12 +1,12 @@
 /*
   Localizable.strings
-  WallpaperEngine
+  LiveWallpaper
 
   English localization
 */
 
 // MARK: - Main UI
-"app_name" = "WallpaperEngine";
+"app_name" = "LiveWallpaper";
 "settings" = "Settings";
 "reload" = "Reload";
 
@@ -34,7 +34,7 @@
 "clear_cache_button" = "Clear cache";
 "reset_userdata" = "Reset app data";
 "reset" = "Reset";
-"Steam Workshop" = "Steam Workshop";
+"Steam Workshop" = "Steam Wallpaper Engine Workshop";
 "Workshop URL or ID" = "Workshop URL or ID";
 "Import" = "Import";
 "Importing..." = "Importing...";
@@ -43,7 +43,7 @@
 "Workshop import failed" = "Workshop import failed";
 "Workshop URL or ID is invalid" = "Invalid Workshop URL or ID";
 "Workshop item was not found" = "I couldn't find that Workshop item.";
-"Workshop item is not a supported video" = "This item doesn't include a playable .mp4 or .mov video.";
+"Workshop item is not a supported video" = "Only .mp4/.mov video items are supported. scene.pkg and other types are not supported yet.";
 "steamcmd was not found" = "I couldn't find steamcmd.";
 "Workshop download failed; check network or Steam" = "Download failed; check network or Steam";
 "Steam username" = "Steam username";

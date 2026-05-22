@@ -1,6 +1,6 @@
 /*
   Localizable.strings
-  WallpaperEngine
+  LiveWallpaper
 
   简体中文本地化
 */
@@ -34,7 +34,7 @@
 "clear_cache_button" = "清理缓存";
 "reset_userdata" = "重置应用数据";
 "reset" = "重置";
-"Steam Workshop" = "Steam 创意工坊";
+"Steam Workshop" = "Steam Wallpaper Engine 创意工坊";
 "Workshop URL or ID" = "创意工坊 URL 或 ID";
 "Import" = "导入";
 "Importing..." = "导入中...";
@@ -43,7 +43,7 @@
 "Workshop import failed" = "创意工坊导入失败";
 "Workshop URL or ID is invalid" = "创意工坊 URL 或 ID 无效";
 "Workshop item was not found" = "没找到这个创意工坊项目。";
-"Workshop item is not a supported video" = "这个项目里没有可播放的 .mp4 或 .mov 视频。";
+"Workshop item is not a supported video" = "目前只支持 .mp4/.mov 视频项目，暂不支持 scene.pkg 等其他类型。";
 "steamcmd was not found" = "没找到 steamcmd。";
 "Workshop download failed; check network or Steam" = "下载失败，请检查网络或 Steam";
 "Steam username" = "Steam 用户名";

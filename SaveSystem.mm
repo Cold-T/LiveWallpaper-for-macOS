@@ -1,6 +1,7 @@
 /*
- * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
+ * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
  * Copyright (C) 2025 Bios thusvill
+ * Copyright (C) 2026 Cold-T
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 
 static std::string configPath() {
   const char *home = getenv("HOME");
-  return std::string(home) + "/Library/Preferences/WallpaperEngine.yaml";
+  return std::string(home) + "/Library/Preferences/LiveWallpaper.yaml";
 }
 
 // ------------------------

@@ -1,8 +1,14 @@
-WallpaperEngineApp
+LiveWallpaperApp
 build
 build/**
 build-xcode
 build-xcode/**
+dist
+dist/**
+Assets.car
+*.xcuserstate
+**/xcuserdata/**
+**/*.xcuserdatad/**
 **.bak
 **.patch
 .DS_Store/
@@ -20,6 +26,7 @@ WallpaperEngine.icon/icon.json
 WallpaperEngine.icon/icon.json
 WallpaperEngine.icon/Assets/roller 2.svg
 /WallpaperEngine.icon
+/LiveWallpaper.icon
 /AppIcon.icon
 
 # Local secrets and Steam session/download state

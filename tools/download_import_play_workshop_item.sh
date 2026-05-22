@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Cold-T
 set -euo pipefail
 
 APP_ID="${STEAM_APP_ID:-431960}"
@@ -13,32 +15,34 @@ if [[ -f "$REPO_ROOT/.env" ]]; then
   set +a
 fi
 
-WORKSHOP_DIR="${WALLPAPERENGINE_STEAM_WORKSHOP_DIR:-$HOME/Library/Application Support/WallpaperEngine/SteamWorkshop}"
-IMPORT_DIR="${WALLPAPERENGINE_IMPORT_DIR:-$HOME/Library/Application Support/WallpaperEngine/ImportedWallpapers}"
-IMPORT_MODE="${WALLPAPERENGINE_IMPORT_MODE:-symlink}"
-VOLUME="${WALLPAPERENGINE_VOLUME:-0.0}"
-SCALE_MODE="${WALLPAPERENGINE_SCALE_MODE:-0}"
+WORKSHOP_DIR="${LIVEWALLPAPER_STEAM_WORKSHOP_DIR:-$HOME/Library/Application Support/LiveWallpaper/SteamWorkshop}"
+IMPORT_DIR="${LIVEWALLPAPER_IMPORT_DIR:-$HOME/Library/Application Support/LiveWallpaper/ImportedWallpapers}"
+IMPORT_MODE="${LIVEWALLPAPER_IMPORT_MODE:-symlink}"
+VOLUME="${LIVEWALLPAPER_VOLUME:-0.0}"
+SCALE_MODE="${LIVEWALLPAPER_SCALE_MODE:-0}"
 
 usage() {
   cat <<'USAGE'
 Usage:
   tools/download_import_play_workshop_item.sh [workshop_url_or_item_id]
 
-Downloads a Wallpaper Engine Workshop item, finds an .mp4/.mov, imports it into
-WallpaperEngine's wallpaper folder, and starts playback through wallpaperdaemon
-when a WallpaperEngine.app bundle or daemon path is available.
+Downloads a Steam Wallpaper Engine Workshop item, finds a directly referenced
+.mp4/.mov video, imports it into LiveWallpaper's wallpaper folder, and starts
+playback through wallpaperdaemon when a LiveWallpaper.app bundle or daemon path
+is available. Scene packages, web wallpapers, application wallpapers, and other
+Workshop project types are not supported yet.
 
 Environment:
   STEAM_USERNAME                         Steam account name, usually loaded from .env.
-  WALLPAPERENGINE_STEAM_WORKSHOP_DIR       SteamCMD download root.
-  WALLPAPERENGINE_IMPORT_DIR               Folder WallpaperEngine should scan.
-  WALLPAPERENGINE_IMPORT_MODE              symlink or copy. Defaults to symlink.
-  WALLPAPERENGINE_APP                      Path to WallpaperEngine.app.
-  WALLPAPERENGINE_DAEMON                   Path to wallpaperdaemon.
-  WALLPAPERENGINE_VOLUME                   Playback volume, defaults to 0.0.
-  WALLPAPERENGINE_SCALE_MODE               0 fill, 1 fit, 2 stretch, defaults to 0.
-  WALLPAPERENGINE_SKIP_PLAY                Set to 1 to import only and let the app UI handle playback.
-  WALLPAPERENGINE_SET_STATIC_FRAME         Set to 1 to let the daemon replace the static desktop image.
+  LIVEWALLPAPER_STEAM_WORKSHOP_DIR       SteamCMD download root.
+  LIVEWALLPAPER_IMPORT_DIR               Folder LiveWallpaper should scan.
+  LIVEWALLPAPER_IMPORT_MODE              symlink or copy. Defaults to symlink.
+  LIVEWALLPAPER_APP                      Path to LiveWallpaper.app.
+  LIVEWALLPAPER_DAEMON                   Path to wallpaperdaemon.
+  LIVEWALLPAPER_VOLUME                   Playback volume, defaults to 0.0.
+  LIVEWALLPAPER_SCALE_MODE               0 fill, 1 fit, 2 stretch, defaults to 0.
+  LIVEWALLPAPER_SKIP_PLAY                Set to 1 to import only and let the app UI handle playback.
+  LIVEWALLPAPER_SET_STATIC_FRAME         Set to 1 to let the daemon replace the static desktop image.
 
 Example:
   tools/download_import_play_workshop_item.sh \
@@ -101,30 +105,19 @@ find_video_file() {
     return 0
   fi
 
-  if [[ -f "$item_dir/scene.pkg" ]]; then
-    local extract_dir="$item_dir/_extracted"
-    python3 "$SCRIPT_DIR/inspect_wallpaper_engine_pkg.py" "$item_dir/scene.pkg" \
-      --extract-dir "$extract_dir" >/dev/null
-    found="$(find "$extract_dir" -maxdepth 6 -type f \( -iname '*.mp4' -o -iname '*.mov' \) -print -quit)"
-    if [[ -n "$found" ]]; then
-      printf '%s\n' "$found"
-      return 0
-    fi
-  fi
-
   return 1
 }
 
-find_wallpaperengine_app() {
-  if [[ -n "${WALLPAPERENGINE_APP:-}" && -d "$WALLPAPERENGINE_APP" ]]; then
-    printf '%s\n' "$WALLPAPERENGINE_APP"
+find_livewallpaper_app() {
+  if [[ -n "${LIVEWALLPAPER_APP:-}" && -d "$LIVEWALLPAPER_APP" ]]; then
+    printf '%s\n' "$LIVEWALLPAPER_APP"
     return 0
   fi
 
   local candidates=(
-    "/Applications/WallpaperEngine.app"
-    "$REPO_ROOT/build-xcode/Build/Products/Debug/WallpaperEngine.app"
-    "$REPO_ROOT/build/Build/Products/Debug/WallpaperEngine.app"
+    "/Applications/LiveWallpaper.app"
+    "$REPO_ROOT/build-xcode/Build/Products/Debug/LiveWallpaper.app"
+    "$REPO_ROOT/build/Build/Products/Debug/LiveWallpaper.app"
   )
 
   local candidate
@@ -136,18 +129,18 @@ find_wallpaperengine_app() {
   done
 
   find "$HOME/Library/Developer/Xcode/DerivedData" \
-    -path '*/Build/Products/*/WallpaperEngine.app' \
+    -path '*/Build/Products/*/LiveWallpaper.app' \
     -type d -print -quit 2>/dev/null || true
 }
 
 find_wallpaperdaemon() {
-  if [[ -n "${WALLPAPERENGINE_DAEMON:-}" && -x "$WALLPAPERENGINE_DAEMON" ]]; then
-    printf '%s\n' "$WALLPAPERENGINE_DAEMON"
+  if [[ -n "${LIVEWALLPAPER_DAEMON:-}" && -x "$LIVEWALLPAPER_DAEMON" ]]; then
+    printf '%s\n' "$LIVEWALLPAPER_DAEMON"
     return 0
   fi
 
   local app
-  app="$(find_wallpaperengine_app)"
+  app="$(find_livewallpaper_app)"
   if [[ -n "$app" && -x "$app/Contents/MacOS/wallpaperdaemon" ]]; then
     printf '%s\n' "$app/Contents/MacOS/wallpaperdaemon"
     return 0
@@ -159,7 +152,7 @@ find_wallpaperdaemon() {
 make_frame_image() {
   local video="$1"
   local item_dir="$2"
-  local frame="$item_dir/wallpaperengine-frame.png"
+  local frame="$item_dir/livewallpaper-frame.png"
 
   if command -v ffmpeg >/dev/null 2>&1; then
     ffmpeg -y -loglevel error -ss 1 -i "$video" -frames:v 1 "$frame" || true
@@ -212,7 +205,8 @@ VIDEO_PATH="$(find_video_file "$ITEM_DIR")" || {
   if [[ -n "$TYPE" ]]; then
     echo "Workshop project type: $TYPE" >&2
   fi
-  echo "Current WallpaperEngine playback supports .mp4 and .mov only." >&2
+  echo "Current LiveWallpaper playback supports video Workshop items only: .mp4 and .mov." >&2
+  echo "scene.pkg, web, application, and other Wallpaper Engine project types are not supported yet." >&2
   exit 4
 }
 
@@ -227,11 +221,11 @@ else
   ln -s "$VIDEO_PATH" "$IMPORTED_PATH"
 fi
 
-defaults write uk.coldt.WallpaperEngine WallpaperFolder "$IMPORT_DIR"
-defaults write uk.coldt.WallpaperEngine WallpaperFolder "$IMPORT_DIR"
+defaults write uk.coldt.LiveWallpaper WallpaperFolder "$IMPORT_DIR"
+defaults write uk.coldt.LiveWallpaper WallpaperFolder "$IMPORT_DIR"
 
-FRAME_PATH="$ITEM_DIR/.wallpaperengine-no-static-frame.png"
-if [[ "${WALLPAPERENGINE_SET_STATIC_FRAME:-0}" == "1" ]]; then
+FRAME_PATH="$ITEM_DIR/.livewallpaper-no-static-frame.png"
+if [[ "${LIVEWALLPAPER_SET_STATIC_FRAME:-0}" == "1" ]]; then
   FRAME_PATH="$(make_frame_image "$VIDEO_PATH" "$ITEM_DIR")"
 fi
 
@@ -245,22 +239,22 @@ if [[ -n "$TYPE" ]]; then
 fi
 echo "Video: $VIDEO_PATH"
 echo "Imported: $IMPORTED_PATH"
-echo "WallpaperEngine folder: $IMPORT_DIR"
+echo "LiveWallpaper folder: $IMPORT_DIR"
 
-if [[ "${WALLPAPERENGINE_SKIP_PLAY:-0}" == "1" ]]; then
+if [[ "${LIVEWALLPAPER_SKIP_PLAY:-0}" == "1" ]]; then
   echo "Playback skipped."
   exit 0
 fi
 
 if DAEMON_PATH="$(find_wallpaperdaemon)"; then
   echo "Starting wallpaperdaemon: $DAEMON_PATH"
-  LABEL="com.wallpaperengine.workshop.$ITEM_ID"
+  LABEL="com.livewallpaper.workshop.$ITEM_ID"
   launchctl remove "$LABEL" >/dev/null 2>&1 || true
   launchctl submit -l "$LABEL" -- "$DAEMON_PATH" "$IMPORTED_PATH" "$FRAME_PATH" "$VOLUME" "$SCALE_MODE"
   echo "launchctl label: $LABEL"
 else
   echo
-  echo "WallpaperEngine daemon was not found."
-  echo "The video was imported. Build or install WallpaperEngine.app, then open it and select the imported video."
+  echo "LiveWallpaper daemon was not found."
+  echo "The video was imported. Build or install LiveWallpaper.app, then open it and select the imported video."
   exit 5
 fi

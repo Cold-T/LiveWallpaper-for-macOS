@@ -1,21 +1,31 @@
 
-# WallpaperEngine App for macOS 14+
+# LiveWallpaper App for macOS 14+
 
 **Languages:** English | [简体中文](README.zh-Hans.md)
 
 ![Roller](./asset/livewall.png)
 
-WallpaperEngine is an open-source live wallpaper app for macOS 14+.
+LiveWallpaper is an open-source live wallpaper app for macOS 14+.
 
 ## Purpose
 
-The goal is simple: make video wallpapers feel practical on macOS. The app focuses on local video wallpapers, menu bar controls, multi-display handling, and importing compatible items from Steam Wallpaper Engine Workshop.
+The goal is simple: make video wallpapers feel practical on macOS. The app focuses on local video wallpapers, menu bar controls, multi-display handling, and importing compatible video items from Steam Wallpaper Engine Workshop.
 
 This project is based on the release source of [thusvill/LiveWallpaperMacOS](https://github.com/thusvill/LiveWallpaperMacOS), then adjusted for the current SwiftUI app, status bar workflow, and Workshop import features.
 
+LiveWallpaper is not affiliated with, endorsed by, or sponsored by Wallpaper Engine Team, Valve, Steam, or any Steam Workshop creator.
+
+## Workshop import
+
+LiveWallpaper can use `steamcmd` to download a Steam Wallpaper Engine Workshop item, then import a directly available `.mp4` or `.mov` video into the local wallpaper folder.
+
+Only video wallpapers are supported right now. `scene.pkg`, web wallpapers, application wallpapers, and other Wallpaper Engine project types are not supported yet.
+
+Use Workshop content only through your own Steam account and only when you have the right to access it. LiveWallpaper does not include, host, or redistribute Workshop content; users are responsible for complying with Steam's terms and each Workshop item's license or creator permissions.
+
 ## Installation
 
-Download the latest `WallpaperEngine.dmg` from [Releases](https://github.com/Cold-T/LiveWallpaperMacOS/releases), open it, and move `WallpaperEngine.app` to `Applications`.
+Download the latest `LiveWallpaper.dmg` from [Releases](https://github.com/Cold-T/LiveWallpaper/releases), open it, and move `LiveWallpaper.app` to `Applications`.
 
 ## Build from source
 - macOS 14+
@@ -25,19 +35,19 @@ Download the latest `WallpaperEngine.dmg` from [Releases](https://github.com/Col
 Run:
 
 ```sh
-git clone https://github.com/Cold-T/LiveWallpaperMacOS.git
-cd LiveWallpaperMacOS
-xcodebuild -project WallpaperEngine.xcodeproj -scheme WallpaperEngine -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+git clone https://github.com/Cold-T/LiveWallpaper.git
+cd LiveWallpaper
+xcodebuild -project LiveWallpaper.xcodeproj -scheme LiveWallpaper -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
 ## Guide for DMG Installation
 
 > [!IMPORTANT]
-> ## If macOS says “WallpaperEngine.app” is damaged and cannot be opened
+> ## If macOS says “LiveWallpaper.app” is damaged and cannot be opened
 > This release is not notarized, so Gatekeeper may block the first launch.
 > After moving the app to `Applications`, run:
 > 
-> `xattr -d com.apple.quarantine /Applications/WallpaperEngine.app` 
+> `xattr -d com.apple.quarantine /Applications/LiveWallpaper.app` 
 
 Click the "Show in Finder" button to open the wallpaper folder, then place wallpapers in it.
 
@@ -53,7 +63,7 @@ Click the "Show in Finder" button to open the wallpaper folder, then place wallp
 >  - file-1920x1080.mp4 ✅ ('.'s = 1)
 
 > [!NOTE]
-> Currently support for `.mp4` and `.mov`
+> Workshop import and playback currently support video items only: `.mp4` and `.mov`.
 
 > https://github.com/user-attachments/assets/3d82e07d-b6b9-4a7d-b6de-5dd05dff3128
 
@@ -61,13 +71,13 @@ Click the "Show in Finder" button to open the wallpaper folder, then place wallp
 
 Post bugs with result of following command.
 
- `/Applications/WallpaperEngine.app/Contents/MacOS/WallpaperEngine` 
+ `/Applications/LiveWallpaper.app/Contents/MacOS/LiveWallpaper` 
 
 ## Gallery
 
 > ![Application](./asset/application.png)
 
-> ## This is a static image, currently WallpaperEngine doesn't support videos on the lock screen.
+> ## This is a static image, currently LiveWallpaper doesn't support videos on the lock screen.
 > ![lockscreen](./asset/lockscreen.png)
 
 > ![settings](./asset/settings.png)
@@ -101,7 +111,9 @@ Post bugs with result of following command.
 > https://github.com/user-attachments/assets/748c7078-1f99-4182-876f-08aa59d2bc63 -->
  
 
-For licensing details, see [LICENSE](LICENSE).
+## License
+
+LiveWallpaper is distributed under the GNU General Public License version 3 or later. See [LICENSE](LICENSE), [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## Credits
 

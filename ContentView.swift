@@ -1,6 +1,7 @@
 /*
- * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
+ * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
  * Copyright (C) 2025 Bios thusvill
+ * Copyright (C) 2026 Cold-T
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -213,7 +214,7 @@ enum UserDefaultsKeys {
 }
 
 extension Notification.Name {
-    static let wallpaperEngineShouldRefresh = Notification.Name("WallpaperEngineShouldRefresh")
+    static let liveWallpaperShouldRefresh = Notification.Name("LiveWallpaperShouldRefresh")
 }
 
 // MARK: - Main Content View
@@ -262,7 +263,7 @@ struct ContentView: View {
             .onAppear {
                 refreshContent()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .wallpaperEngineShouldRefresh)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .liveWallpaperShouldRefresh)) { _ in
                 refreshContent()
             }
 
@@ -1232,10 +1233,10 @@ struct WorkshopImporter {
             let pipe = Pipe()
             var environment = ProcessInfo.processInfo.environment
 
-            environment["WALLPAPERENGINE_IMPORT_DIR"] = importFolder
-            environment["WALLPAPERENGINE_IMPORT_MODE"] = "symlink"
-            environment["WALLPAPERENGINE_SKIP_PLAY"] = "1"
-            environment["WALLPAPERENGINE_APP"] = appBundlePath
+            environment["LIVEWALLPAPER_IMPORT_DIR"] = importFolder
+            environment["LIVEWALLPAPER_IMPORT_MODE"] = "symlink"
+            environment["LIVEWALLPAPER_SKIP_PLAY"] = "1"
+            environment["LIVEWALLPAPER_APP"] = appBundlePath
             if let steamUsername, !steamUsername.isEmpty {
                 environment["STEAM_USERNAME"] = steamUsername
             }
@@ -1399,7 +1400,7 @@ struct SteamLoginTerminal {
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        ).appendingPathComponent("WallpaperEngine", isDirectory: true)
+        ).appendingPathComponent("LiveWallpaper", isDirectory: true)
 
         try FileManager.default.createDirectory(
             at: supportURL,
@@ -1530,9 +1531,9 @@ class WallpaperViewModel: ObservableObject {
     private var steamLoginCheckTask: Task<Void, Never>?
     private let reloadIDLock = NSLock()
     private let defaults = UserDefaults.standard
-    let engine: WallpaperEngine
+    let engine: LiveWallpaper
 
-    init(engine: WallpaperEngine = sharedEngine ?? WallpaperEngine.shared()) {
+    init(engine: LiveWallpaper = sharedEngine ?? LiveWallpaper.shared()) {
         self.engine = engine
         loadSettings()
         self.engine.setupNotifications()
@@ -1722,6 +1723,7 @@ class WallpaperViewModel: ObservableObject {
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView()
 }
@@ -1729,3 +1731,4 @@ class WallpaperViewModel: ObservableObject {
 #Preview {
     SettingsView(viewModel: WallpaperViewModel())
 }
+#endif

@@ -17,13 +17,17 @@
 		04E055F42EEA8D6800F90A44 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04E055472EEA795F00F90A44 /* CoreGraphics.framework */; };
 		04E055F52EEA8D7100F90A44 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04E055DE2EEA8C2600F90A44 /* QuartzCore.framework */; };
 		04E055F72EEA8DDA00F90A44 /* wallpaperdaemon in CopyFiles */ = {isa = PBXBuildFile; fileRef = 04E055E82EEA8D2C00F90A44 /* wallpaperdaemon */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		04E056FF2EEAB3EE00F90A44 /* WallpaperEngineApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E056672EEAB3EE00F90A44 /* WallpaperEngineApp.swift */; };
-		04E0570B2EEAB3EE00F90A44 /* WallpaperEngine.mm in Sources */ = {isa = PBXBuildFile; fileRef = 04E056F02EEAB3EE00F90A44 /* WallpaperEngine.mm */; };
+		04E056FF2EEAB3EE00F90A44 /* LiveWallpaperApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E056672EEAB3EE00F90A44 /* LiveWallpaperApp.swift */; };
+		04E0570B2EEAB3EE00F90A44 /* LiveWallpaper.mm in Sources */ = {isa = PBXBuildFile; fileRef = 04E056F02EEAB3EE00F90A44 /* LiveWallpaper.mm */; };
 		04E057192EEAB3EE00F90A44 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E0565F2EEAB3EE00F90A44 /* ContentView.swift */; };
 		04E0571C2EEAB3EE00F90A44 /* SaveSystem.mm in Sources */ = {isa = PBXBuildFile; fileRef = 04E0566C2EEAB3EE00F90A44 /* SaveSystem.mm */; };
 		04E057382EEAB3EE00F90A44 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04E0565D2EEAB3EE00F90A44 /* Assets.xcassets */; };
 		04E090002F52100100F90A44 /* en.lproj in Resources */ = {isa = PBXBuildFile; fileRef = 04E090012F52100100F90A44 /* en.lproj */; };
 		04E090022F52100100F90A44 /* zh-Hans.lproj in Resources */ = {isa = PBXBuildFile; fileRef = 04E090032F52100100F90A44 /* zh-Hans.lproj */; };
+		04F910012F52000100D4C0DE /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 04F910002F52000100D4C0DE /* LICENSE */; };
+		04F910032F52000100D4C0DE /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 04F910022F52000100D4C0DE /* NOTICE */; };
+		04F910052F52000100D4C0DE /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = 04F910042F52000100D4C0DE /* THIRD_PARTY_NOTICES.md */; };
+		04F910072F52000100D4C0DE /* CONTRIBUTORS.md in Resources */ = {isa = PBXBuildFile; fileRef = 04F910062F52000100D4C0DE /* CONTRIBUTORS.md */; };
 		04E057742EEAB43200F90A44 /* emitterstate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E0574A2EEAB43200F90A44 /* emitterstate.cpp */; };
 		04E057752EEAB43200F90A44 /* nodebuilder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E057562EEAB43200F90A44 /* nodebuilder.cpp */; };
 		04E057762EEAB43200F90A44 /* ostream_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04E0575A2EEAB43200F90A44 /* ostream_wrapper.cpp */; };
@@ -81,7 +85,7 @@
 
 /* Begin PBXFileReference section */
 		048ABDDC2F4C1652001393B0 /* asset/AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = asset/AppIcon.icon; sourceTree = SOURCE_ROOT; };
-		04E0070A2EEA738C00F90A44 /* WallpaperEngine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WallpaperEngine.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		04E0070A2EEA738C00F90A44 /* LiveWallpaper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiveWallpaper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04E055412EEA794C00F90A44 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		04E055432EEA795200F90A44 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		04E055452EEA795900F90A44 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
@@ -93,14 +97,18 @@
 		04E0565D2EEAB3EE00F90A44 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		04E0565F2EEAB3EE00F90A44 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = SOURCE_ROOT; };
 		04E056612EEAB3EE00F90A44 /* DisplayManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DisplayManager.h; sourceTree = SOURCE_ROOT; };
-		04E056662EEAB3EE00F90A44 /* WallpaperEngine-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "WallpaperEngine-Bridging-Header.h"; sourceTree = SOURCE_ROOT; };
-		04E056672EEAB3EE00F90A44 /* WallpaperEngineApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperEngineApp.swift; sourceTree = SOURCE_ROOT; };
+		04E056662EEAB3EE00F90A44 /* LiveWallpaper-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "LiveWallpaper-Bridging-Header.h"; sourceTree = SOURCE_ROOT; };
+		04E056672EEAB3EE00F90A44 /* LiveWallpaperApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWallpaperApp.swift; sourceTree = SOURCE_ROOT; };
 		04E0566B2EEAB3EE00F90A44 /* SaveSystem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SaveSystem.h; sourceTree = SOURCE_ROOT; };
 		04E0566C2EEAB3EE00F90A44 /* SaveSystem.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SaveSystem.mm; sourceTree = SOURCE_ROOT; };
-		04E056EF2EEAB3EE00F90A44 /* WallpaperEngine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WallpaperEngine.h; sourceTree = SOURCE_ROOT; };
-		04E056F02EEAB3EE00F90A44 /* WallpaperEngine.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = WallpaperEngine.mm; sourceTree = SOURCE_ROOT; };
+		04E056EF2EEAB3EE00F90A44 /* LiveWallpaper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveWallpaper.h; sourceTree = SOURCE_ROOT; };
+		04E056F02EEAB3EE00F90A44 /* LiveWallpaper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = LiveWallpaper.mm; sourceTree = SOURCE_ROOT; };
 		04E090012F52100100F90A44 /* en.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = en.lproj; sourceTree = SOURCE_ROOT; };
 		04E090032F52100100F90A44 /* zh-Hans.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "zh-Hans.lproj"; sourceTree = SOURCE_ROOT; };
+		04F910002F52000100D4C0DE /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = SOURCE_ROOT; };
+		04F910022F52000100D4C0DE /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE; sourceTree = SOURCE_ROOT; };
+		04F910042F52000100D4C0DE /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = SOURCE_ROOT; };
+		04F910062F52000100D4C0DE /* CONTRIBUTORS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CONTRIBUTORS.md; sourceTree = SOURCE_ROOT; };
 		04E057392EEAB43200F90A44 /* dragonbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dragonbox.h; sourceTree = "<group>"; };
 		04E0573A2EEAB43200F90A44 /* graphbuilder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = graphbuilder.cpp; sourceTree = "<group>"; };
 		04E0573B2EEAB43200F90A44 /* graphbuilderadapter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = graphbuilderadapter.h; sourceTree = "<group>"; };
@@ -312,9 +320,13 @@
 		04E007012EEA738C00F90A44 = {
 			isa = PBXGroup;
 			children = (
-				04E0565B2EEAB3DD00F90A44 /* WallpaperEngine */,
+				04E0565B2EEAB3DD00F90A44 /* LiveWallpaper */,
 				04E055E92EEA8D2C00F90A44 /* wallpaperdaemon */,
 				04F900002F50C00100D4C0DE /* tools */,
+				04F910002F52000100D4C0DE /* LICENSE */,
+				04F910022F52000100D4C0DE /* NOTICE */,
+				04F910042F52000100D4C0DE /* THIRD_PARTY_NOTICES.md */,
+				04F910062F52000100D4C0DE /* CONTRIBUTORS.md */,
 				04E054BD2EEA76F600F90A44 /* Frameworks */,
 				04E0070B2EEA738C00F90A44 /* Products */,
 				048ABDDC2F4C1652001393B0 /* asset/AppIcon.icon */,
@@ -324,7 +336,7 @@
 		04E0070B2EEA738C00F90A44 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				04E0070A2EEA738C00F90A44 /* WallpaperEngine.app */,
+				04E0070A2EEA738C00F90A44 /* LiveWallpaper.app */,
 				04E055E82EEA8D2C00F90A44 /* wallpaperdaemon */,
 			);
 			name = Products;
@@ -345,25 +357,25 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		04E0565B2EEAB3DD00F90A44 /* WallpaperEngine */ = {
+		04E0565B2EEAB3DD00F90A44 /* LiveWallpaper */ = {
 			isa = PBXGroup;
 			children = (
 				04E0565D2EEAB3EE00F90A44 /* Assets.xcassets */,
 				04E0565F2EEAB3EE00F90A44 /* ContentView.swift */,
 				04E056612EEAB3EE00F90A44 /* DisplayManager.h */,
-				04E056662EEAB3EE00F90A44 /* WallpaperEngine-Bridging-Header.h */,
-				04E056672EEAB3EE00F90A44 /* WallpaperEngineApp.swift */,
+				04E056662EEAB3EE00F90A44 /* LiveWallpaper-Bridging-Header.h */,
+				04E056672EEAB3EE00F90A44 /* LiveWallpaperApp.swift */,
 				04E0566B2EEAB3EE00F90A44 /* SaveSystem.h */,
 				04E0566C2EEAB3EE00F90A44 /* SaveSystem.mm */,
-				04E056EF2EEAB3EE00F90A44 /* WallpaperEngine.h */,
-				04E056F02EEAB3EE00F90A44 /* WallpaperEngine.mm */,
+				04E056EF2EEAB3EE00F90A44 /* LiveWallpaper.h */,
+				04E056F02EEAB3EE00F90A44 /* LiveWallpaper.mm */,
 				04E090012F52100100F90A44 /* en.lproj */,
 				04E090032F52100100F90A44 /* zh-Hans.lproj */,
 				04F816DE2EEBE3FB00CFB473 /* DisplayObjc.h */,
 				04F816DF2EEBE3FB00CFB473 /* DisplayObjc.mm */,
 				04E057732EEAB43200F90A44 /* src */,
 			);
-			path = WallpaperEngine;
+			path = LiveWallpaper;
 			sourceTree = "<group>";
 		};
 		04E0573F2EEAB43200F90A44 /* contrib */ = {
@@ -637,9 +649,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		04E007092EEA738C00F90A44 /* WallpaperEngine */ = {
+		04E007092EEA738C00F90A44 /* LiveWallpaper */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 04E007152EEA738D00F90A44 /* Build configuration list for PBXNativeTarget "WallpaperEngine" */;
+			buildConfigurationList = 04E007152EEA738D00F90A44 /* Build configuration list for PBXNativeTarget "LiveWallpaper" */;
 			buildPhases = (
 				04E007062EEA738C00F90A44 /* Sources */,
 				04E007072EEA738C00F90A44 /* Frameworks */,
@@ -648,9 +660,9 @@
 			);
 			buildRules = (
 			);
-			name = WallpaperEngine;
-			productName = WallpaperEngine;
-			productReference = 04E0070A2EEA738C00F90A44 /* WallpaperEngine.app */;
+			name = LiveWallpaper;
+			productName = LiveWallpaper;
+			productReference = 04E0070A2EEA738C00F90A44 /* LiveWallpaper.app */;
 			productType = "com.apple.product-type.application";
 		};
 		04E055E72EEA8D2C00F90A44 /* wallpaperdaemon */ = {
@@ -689,7 +701,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 04E007052EEA738C00F90A44 /* Build configuration list for PBXProject "WallpaperEngine" */;
+			buildConfigurationList = 04E007052EEA738C00F90A44 /* Build configuration list for PBXProject "LiveWallpaper" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -703,7 +715,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				04E007092EEA738C00F90A44 /* WallpaperEngine */,
+				04E007092EEA738C00F90A44 /* LiveWallpaper */,
 				04E055E72EEA8D2C00F90A44 /* wallpaperdaemon */,
 			);
 		};
@@ -717,6 +729,10 @@
 				04E090002F52100100F90A44 /* en.lproj in Resources */,
 				04E090022F52100100F90A44 /* zh-Hans.lproj in Resources */,
 				04F900012F50C00100D4C0DE /* tools in Resources */,
+				04F910012F52000100D4C0DE /* LICENSE in Resources */,
+				04F910032F52000100D4C0DE /* NOTICE in Resources */,
+				04F910052F52000100D4C0DE /* THIRD_PARTY_NOTICES.md in Resources */,
+				04F910072F52000100D4C0DE /* CONTRIBUTORS.md in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -757,9 +773,9 @@
 				04E057912EEAB43200F90A44 /* null.cpp in Sources */,
 				04E057922EEAB43200F90A44 /* scanner.cpp in Sources */,
 				04E057932EEAB43200F90A44 /* directives.cpp in Sources */,
-				04E056FF2EEAB3EE00F90A44 /* WallpaperEngineApp.swift in Sources */,
+				04E056FF2EEAB3EE00F90A44 /* LiveWallpaperApp.swift in Sources */,
 				04F816E02EEBE3FB00CFB473 /* DisplayObjc.mm in Sources */,
-				04E0570B2EEAB3EE00F90A44 /* WallpaperEngine.mm in Sources */,
+				04E0570B2EEAB3EE00F90A44 /* LiveWallpaper.mm in Sources */,
 				04E057192EEAB3EE00F90A44 /* ContentView.swift in Sources */,
 				04E0571C2EEAB3EE00F90A44 /* SaveSystem.mm in Sources */,
 			);
@@ -772,7 +788,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		04E007132EEA738D00F90A44 /* Debug configuration for PBXProject "WallpaperEngine" */ = {
+		04E007132EEA738D00F90A44 /* Debug configuration for PBXProject "LiveWallpaper" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -835,7 +851,7 @@
 			};
 			name = Debug;
 		};
-		04E007142EEA738D00F90A44 /* Release configuration for PBXProject "WallpaperEngine" */ = {
+		04E007142EEA738D00F90A44 /* Release configuration for PBXProject "LiveWallpaper" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -890,10 +906,10 @@
 			};
 			name = Release;
 		};
-		04E007162EEA738D00F90A44 /* Debug configuration for PBXNativeTarget "WallpaperEngine" */ = {
+		04E007162EEA738D00F90A44 /* Debug configuration for PBXNativeTarget "LiveWallpaper" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = WallpaperEngineIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = LiveWallpaperIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
@@ -909,12 +925,12 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/yaml-cpp/include";
-				INFOPLIST_KEY_CFBundleDisplayName = "Wallpaper Engine";
-				INFOPLIST_KEY_CFBundleName = "Wallpaper Engine";
+				INFOPLIST_KEY_CFBundleDisplayName = "LiveWallpaper";
+				INFOPLIST_KEY_CFBundleName = "LiveWallpaper";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Wallpaper Engine uses Apple Events to coordinate wallpaper playback and control its helper process.";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "LiveWallpaper uses Apple Events to coordinate wallpaper playback and control its helper process.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (C) 2025 Bios thusvill; Copyright (C) 2026 Cold-T. GPL-3.0-or-later.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -926,8 +942,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.0;
 				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.WallpaperEngine;
-				PRODUCT_NAME = WallpaperEngine;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.LiveWallpaper;
+				PRODUCT_NAME = LiveWallpaper;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -940,17 +956,17 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/WallpaperEngine-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/LiveWallpaper-Bridging-Header.h";
 				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
-		04E007172EEA738D00F90A44 /* Release configuration for PBXNativeTarget "WallpaperEngine" */ = {
+		04E007172EEA738D00F90A44 /* Release configuration for PBXNativeTarget "LiveWallpaper" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = WallpaperEngineIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = LiveWallpaperIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
@@ -966,12 +982,12 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/vendor/yaml-cpp/include";
-				INFOPLIST_KEY_CFBundleDisplayName = "Wallpaper Engine";
-				INFOPLIST_KEY_CFBundleName = "Wallpaper Engine";
+				INFOPLIST_KEY_CFBundleDisplayName = "LiveWallpaper";
+				INFOPLIST_KEY_CFBundleName = "LiveWallpaper";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Wallpaper Engine uses Apple Events to coordinate wallpaper playback and control its helper process.";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "LiveWallpaper uses Apple Events to coordinate wallpaper playback and control its helper process.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (C) 2025 Bios thusvill; Copyright (C) 2026 Cold-T. GPL-3.0-or-later.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -983,8 +999,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.0;
 				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.WallpaperEngine;
-				PRODUCT_NAME = WallpaperEngine;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.LiveWallpaper;
+				PRODUCT_NAME = LiveWallpaper;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -997,7 +1013,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/WallpaperEngine-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/LiveWallpaper-Bridging-Header.h";
 				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -1019,8 +1035,8 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.WallpaperEngine.wallpaperdaemon;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = uk.coldt.WallpaperEngine.wallpaperdaemon;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.LiveWallpaper.wallpaperdaemon;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = uk.coldt.LiveWallpaper.wallpaperdaemon;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -1046,8 +1062,8 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.WallpaperEngine.wallpaperdaemon;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = uk.coldt.WallpaperEngine.wallpaperdaemon;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.coldt.LiveWallpaper.wallpaperdaemon;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = uk.coldt.LiveWallpaper.wallpaperdaemon;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -1061,19 +1077,19 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		04E007052EEA738C00F90A44 /* Build configuration list for PBXProject "WallpaperEngine" */ = {
+		04E007052EEA738C00F90A44 /* Build configuration list for PBXProject "LiveWallpaper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				04E007132EEA738D00F90A44 /* Debug configuration for PBXProject "WallpaperEngine" */,
-				04E007142EEA738D00F90A44 /* Release configuration for PBXProject "WallpaperEngine" */,
+				04E007132EEA738D00F90A44 /* Debug configuration for PBXProject "LiveWallpaper" */,
+				04E007142EEA738D00F90A44 /* Release configuration for PBXProject "LiveWallpaper" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		04E007152EEA738D00F90A44 /* Build configuration list for PBXNativeTarget "WallpaperEngine" */ = {
+		04E007152EEA738D00F90A44 /* Build configuration list for PBXNativeTarget "LiveWallpaper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				04E007162EEA738D00F90A44 /* Debug configuration for PBXNativeTarget "WallpaperEngine" */,
-				04E007172EEA738D00F90A44 /* Release configuration for PBXNativeTarget "WallpaperEngine" */,
+				04E007162EEA738D00F90A44 /* Debug configuration for PBXNativeTarget "LiveWallpaper" */,
+				04E007172EEA738D00F90A44 /* Release configuration for PBXNativeTarget "LiveWallpaper" */,
 			);
 			defaultConfigurationName = Release;
 		};

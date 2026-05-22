@@ -1,6 +1,7 @@
 /*
- * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
+ * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
  * Copyright (C) 2025 Bios thusvill
+ * Copyright (C) 2026 Cold-T
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#import "WallpaperEngine.h"
+#import "LiveWallpaper.h"
 #include "DisplayObjc.h"
 #include "SaveSystem.h"
 #import <CoreGraphics/CoreGraphics.h>
@@ -36,14 +37,14 @@ extern char **environ;
 static NSString *folderPath = nil;
 
 static NSString *OriginalDesktopWallpaperKeyForUUID(NSString *displayUUID) {
-  return [@"WallpaperEngineOriginalDesktopImage." stringByAppendingString:displayUUID ?: @"main"];
+  return [@"LiveWallpaperOriginalDesktopImage." stringByAppendingString:displayUUID ?: @"main"];
 }
 
 static NSString *OriginalDesktopWallpaperUUIDsKey() {
-  return @"WallpaperEngineOriginalDesktopImageUUIDs";
+  return @"LiveWallpaperOriginalDesktopImageUUIDs";
 }
 
-@implementation WallpaperEngine {
+@implementation LiveWallpaper {
 @private
   dispatch_queue_t _wallpaperQueue;
   dispatch_queue_t _thumbnailQueue;
@@ -51,7 +52,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 }
 
 + (instancetype)sharedEngine {
-  static WallpaperEngine *sharedInstance = nil;
+  static LiveWallpaper *sharedInstance = nil;
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
     sharedInstance = [[self alloc] init];
@@ -67,9 +68,9 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     _currentVideoPath = nil;
     _daemonPIDs = std::list<pid_t>();
 
-    _wallpaperQueue = dispatch_queue_create("com.wallpaperengine.wallpaperQueue",
+    _wallpaperQueue = dispatch_queue_create("com.livewallpaper.wallpaperQueue",
                                             DISPATCH_QUEUE_CONCURRENT);
-    _thumbnailQueue = dispatch_queue_create("com.wallpaperengine.thumbnailQueue",
+    _thumbnailQueue = dispatch_queue_create("com.livewallpaper.thumbnailQueue",
                                             DISPATCH_QUEUE_SERIAL);
 
     _wallpaperSemaphore = dispatch_semaphore_create(2);
@@ -240,7 +241,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
       [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
 
   if (!bundleName || bundleName.length == 0) {
-    bundleName = @"WallpaperEngine";
+    bundleName = @"LiveWallpaper";
   }
 
   NSString *thumbnailPath = [systemCacheDir
@@ -267,7 +268,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
       [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
 
   if (!bundleName || bundleName.length == 0) {
-    bundleName = @"WallpaperEngine";
+    bundleName = @"LiveWallpaper";
   }
 
   NSString *wallpapersPath = [systemCacheDir
@@ -911,12 +912,12 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 - (BOOL)enableAppAsLoginItem {
   NSString *agentPath = [NSHomeDirectory()
       stringByAppendingPathComponent:
-          @"Library/LaunchAgents/uk.coldt.WallpaperEngine.plist"];
+          @"Library/LaunchAgents/uk.coldt.LiveWallpaper.plist"];
 
   NSString *execPath = [[NSBundle mainBundle] executablePath];
 
   NSDictionary *plist = @{
-    @"Label" : @"uk.coldt.WallpaperEngine",
+    @"Label" : @"uk.coldt.LiveWallpaper",
     @"ProgramArguments" : @[ execPath ],
     @"RunAtLoad" : @YES,
     @"KeepAlive" : @NO
@@ -1205,7 +1206,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
              URLsForDirectory:NSCachesDirectory
                     inDomains:NSUserDomainMask].firstObject path];
 
-    path = [cacheDir stringByAppendingPathComponent:@"WallpaperEngine"];
+    path = [cacheDir stringByAppendingPathComponent:@"LiveWallpaper"];
 
     [defaults setObject:path forKey:@"WallpaperFolder"];
     [defaults synchronize];

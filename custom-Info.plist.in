@@ -12,10 +12,13 @@
 <string>livewall</string>
 
   <key>CFBundleIdentifier</key>
-  <string>uk.coldt.WallpaperEngine</string>
+  <string>uk.coldt.LiveWallpaper</string>
 
   <key>CFBundleName</key>
-  <string>WallpaperEngine</string>
+  <string>LiveWallpaper</string>
+
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright (C) 2025 Bios thusvill; Copyright (C) 2026 Cold-T. GPL-3.0-or-later.</string>
 
   <key>CFBundlePackageType</key>
   <string>APPL</string>

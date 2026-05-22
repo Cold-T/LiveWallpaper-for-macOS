@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Cold-T
 set -euo pipefail
 
 APP_ID="${STEAM_APP_ID:-431960}"
 DEFAULT_ITEM_URL="https://steamcommunity.com/sharedfiles/filedetails/?id=3660962877"
 ITEM_INPUT="${1:-$DEFAULT_ITEM_URL}"
-DOWNLOAD_DIR="${WALLPAPERENGINE_STEAM_WORKSHOP_DIR:-$HOME/Library/Application Support/WallpaperEngine/SteamWorkshop}"
+DOWNLOAD_DIR="${LIVEWALLPAPER_STEAM_WORKSHOP_DIR:-$HOME/Library/Application Support/LiveWallpaper/SteamWorkshop}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -15,7 +17,7 @@ if [[ -f "$REPO_ROOT/.env" ]]; then
   set +a
 fi
 
-DOWNLOAD_DIR="${WALLPAPERENGINE_STEAM_WORKSHOP_DIR:-$DOWNLOAD_DIR}"
+DOWNLOAD_DIR="${LIVEWALLPAPER_STEAM_WORKSHOP_DIR:-$DOWNLOAD_DIR}"
 
 usage() {
   cat <<'USAGE'
@@ -26,7 +28,7 @@ Environment:
   STEAM_USERNAME                         Steam account name. If omitted, the script tries anonymous login.
   STEAMCMD                               Optional path to steamcmd or steamcmd.sh.
   STEAM_APP_ID                           Defaults to 431960 (Wallpaper Engine).
-  WALLPAPERENGINE_STEAM_WORKSHOP_DIR       Download root directory.
+  LIVEWALLPAPER_STEAM_WORKSHOP_DIR       Download root directory.
 
 Example:
   STEAM_USERNAME=myname tools/download_wallpaper_engine_item.sh \

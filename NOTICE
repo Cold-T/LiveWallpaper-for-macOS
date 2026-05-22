@@ -1,0 +1,26 @@
+LiveWallpaper
+
+Copyright (C) 2025 Bios thusvill
+Copyright (C) 2026 Cold-T
+
+LiveWallpaper is free software distributed under the GNU General Public
+License version 3 or, at your option, any later version. See LICENSE.
+
+This project is based on release source from:
+
+  thusvill/LiveWallpaperMacOS
+  https://github.com/thusvill/LiveWallpaperMacOS
+
+The current fork includes SwiftUI/status bar workflow changes and a Steam
+Wallpaper Engine Workshop video import workflow.
+
+LiveWallpaper is not affiliated with, endorsed by, or sponsored by Wallpaper
+Engine Team, Valve, Steam, or any Steam Workshop creator.
+
+Workshop import support is limited to directly available video files
+(.mp4 and .mov). scene.pkg, web wallpapers, application wallpapers, and other
+Wallpaper Engine project types are not supported yet.
+
+LiveWallpaper does not include, host, or redistribute Steam Workshop content.
+Users are responsible for using their own Steam account and complying with
+Steam terms and each Workshop item's license or creator permissions.

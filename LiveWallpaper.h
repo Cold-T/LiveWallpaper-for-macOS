@@ -1,6 +1,7 @@
 /*
- * This file is part of WallpaperEngine – WallpaperEngine App for macOS.
+ * This file is part of LiveWallpaper – LiveWallpaper App for macOS.
  * Copyright (C) 2025 Bios thusvill
+ * Copyright (C) 2026 Cold-T
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,8 +18,8 @@
  */
 #pragma once
 
-#ifndef WallpaperEngine_h
-#define WallpaperEngine_h
+#ifndef LiveWallpaper_h
+#define LiveWallpaper_h
 
 #import <AppKit/AppKit.h>
 #import <AVFoundation/AVFoundation.h>
@@ -31,16 +32,17 @@
 
 
 
-@interface WallpaperEngine : NSObject
+@interface LiveWallpaper : NSObject
 
-+ (instancetype)sharedEngine;
++ (instancetype)sharedEngine NS_SWIFT_NAME(shared());
 
 - (instancetype)init;
 
 - (void) randomWallpapersLid;
 
 - (void)startWallpaperWithPath:(NSString *)videoPath
-                    onDisplays:(NSArray<NSNumber *> *)displayIDs;
+                    onDisplays:(NSArray<NSNumber *> *)displayIDs
+    NS_SWIFT_NAME(startWallpaper(withPath:onDisplays:));
 
 - (void)applyWallpaperToDisplay:(CGDirectDisplayID)displayID
                       videoPath:(NSString *)videoPath;
@@ -87,12 +89,12 @@
 - (void)checkWallpapers;
 - (NSUInteger)availableWallpaperCount;
 
--(void) nextWallpaper;
--(void) startLastWallpaper;
+-(void) nextWallpaper NS_SWIFT_NAME(nextWallpaper());
+-(void) startLastWallpaper NS_SWIFT_NAME(startLastWallpaper());
 
 -(void) startPlaylist;
-- (void)startWallpaperRotation;
-- (void)stopWallpaperRotation;
+- (void)startWallpaperRotation NS_SWIFT_NAME(startWallpaperRotation());
+- (void)stopWallpaperRotation NS_SWIFT_NAME(stopWallpaperRotation());
 
 
 

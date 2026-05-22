@@ -1,20 +1,30 @@
-# macOS 14+ 动态壁纸应用 WallpaperEngine
+# macOS 14+ 动态壁纸应用 LiveWallpaper
 
 **语言：** [English](README.md) | 简体中文
 
 ![Roller](./asset/livewall.png)
 
-WallpaperEngine 是一个面向 macOS 14+ 的开源动态壁纸应用。
+LiveWallpaper 是一个面向 macOS 14+ 的开源动态壁纸应用。
 
 ## 项目目的
 
-项目目的很简单：让视频动态壁纸在 macOS 上更好用。当前重点是本地视频壁纸、菜单栏控制、多显示器处理，以及导入兼容的 Steam Wallpaper Engine Workshop 项目。
+项目目的很简单：让视频动态壁纸在 macOS 上更好用。当前重点是本地视频壁纸、菜单栏控制、多显示器处理，以及导入兼容的 Steam Wallpaper Engine Workshop 视频项目。
 
 本项目基于 [thusvill/LiveWallpaperMacOS](https://github.com/thusvill/LiveWallpaperMacOS) 的 release 源进行整理和改造，并在此基础上加入当前 SwiftUI 界面、状态栏流程和 Workshop 导入功能。
 
+LiveWallpaper 与 Wallpaper Engine Team、Valve、Steam 或任何 Steam Workshop 创作者没有从属、赞助、背书或官方合作关系。
+
+## Workshop 导入
+
+LiveWallpaper 可以通过 `steamcmd` 下载 Steam Wallpaper Engine Workshop 项目，然后把其中直接可用的 `.mp4` 或 `.mov` 视频导入到本地壁纸文件夹。
+
+目前只支持视频壁纸。`scene.pkg`、网页壁纸、应用壁纸，以及其他 Wallpaper Engine 项目类型暂时不支持。
+
+请只通过你自己的 Steam 账号使用你有权访问的 Workshop 内容。LiveWallpaper 不内置、不托管、也不再分发 Workshop 内容；用户需要自行遵守 Steam 条款以及每个 Workshop 项目的许可或创作者授权。
+
 ## 安装
 
-从 [Releases](https://github.com/Cold-T/LiveWallpaperMacOS/releases) 下载最新的 `WallpaperEngine.dmg`，打开后将 `WallpaperEngine.app` 移到 `Applications`。
+从 [Releases](https://github.com/Cold-T/LiveWallpaper/releases) 下载最新的 `LiveWallpaper.dmg`，打开后将 `LiveWallpaper.app` 移到 `Applications`。
 
 ## 从源码编译
 
@@ -25,19 +35,19 @@ WallpaperEngine 是一个面向 macOS 14+ 的开源动态壁纸应用。
 运行：
 
 ```sh
-git clone https://github.com/Cold-T/LiveWallpaperMacOS.git
-cd LiveWallpaperMacOS
-xcodebuild -project WallpaperEngine.xcodeproj -scheme WallpaperEngine -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+git clone https://github.com/Cold-T/LiveWallpaper.git
+cd LiveWallpaper
+xcodebuild -project LiveWallpaper.xcodeproj -scheme LiveWallpaper -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
 ## DMG 安装指南
 
 > [!IMPORTANT]
-> ## 如果 macOS 提示 “WallpaperEngine.app” 已损坏，无法打开
+> ## 如果 macOS 提示 “LiveWallpaper.app” 已损坏，无法打开
 > 当前发布包没有做 notarization，首次启动可能会被 Gatekeeper 拦截。
 > 将应用移到 `Applications` 后运行：
 >
-> `xattr -d com.apple.quarantine /Applications/WallpaperEngine.app`
+> `xattr -d com.apple.quarantine /Applications/LiveWallpaper.app`
 
 点击 “在 Finder 中显示” 按钮会打开壁纸文件夹，你可以把壁纸文件放进去。
 
@@ -52,7 +62,7 @@ xcodebuild -project WallpaperEngine.xcodeproj -scheme WallpaperEngine -configura
 > - file-1920x1080.mp4 ✅（点号数量 = 1）
 
 > [!NOTE]
-> 目前支持 `.mp4` 和 `.mov`
+> Workshop 导入和播放目前只支持视频项目：`.mp4` 和 `.mov`。
 
 > https://github.com/user-attachments/assets/3d82e07d-b6b9-4a7d-b6de-5dd05dff3128
 
@@ -60,7 +70,7 @@ xcodebuild -project WallpaperEngine.xcodeproj -scheme WallpaperEngine -configura
 
 > ![Application](./asset/application.png)
 
-> ## 这是静态图片，目前 WallpaperEngine 不支持锁屏播放视频。
+> ## 这是静态图片，目前 LiveWallpaper 不支持锁屏播放视频。
 > ![lockscreen](./asset/lockscreen.png)
 
 > ![settings](./asset/settings.png)
@@ -89,7 +99,9 @@ xcodebuild -project WallpaperEngine.xcodeproj -scheme WallpaperEngine -configura
 > https://github.com/user-attachments/assets/748c7078-1f99-4182-876f-08aa59d2bc63
 -->
 
-许可协议请参见 [LICENSE](LICENSE)。
+## 许可证
+
+LiveWallpaper 以 GNU General Public License version 3 or later 发布。许可和归属信息请参见 [LICENSE](LICENSE)、[NOTICE](NOTICE)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和 [CONTRIBUTORS.md](CONTRIBUTORS.md)。
 
 ## Credits
 
