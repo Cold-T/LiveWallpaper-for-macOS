@@ -88,3 +88,7 @@
 -->
 
 许可协议请参见 [LICENSE](LICENSE)。
+
+## Credits
+
+[Wallpaper Engine](https://icons8.com/icon/jQspry5Tmnu5/wallpaper-engine) icon by [Icons8](https://icons8.com).

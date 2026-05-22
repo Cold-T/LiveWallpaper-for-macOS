@@ -35,28 +35,31 @@ struct WallpaperEngineApp: App {
 }
 
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem!
     var window: NSWindow!
+    private var toggleWallpaperItem: NSMenuItem!
+    private var showWindowItem: NSMenuItem!
+    private var nextWallpaperItem: NSMenuItem!
+    private var quitItem: NSMenuItem!
     
     let engine = sharedEngine
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         
-        NSApp.setActivationPolicy(.regular)
+        NSApp.setActivationPolicy(.accessory)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "play.desktopcomputer", accessibilityDescription: "Wallpaper Engine")
+            let statusIcon = NSImage(named: "WallpaperEngineStatusIcon")
+                ?? NSImage(named: NSImage.applicationIconName)
+                ?? NSImage(systemSymbolName: "play.desktopcomputer", accessibilityDescription: "Wallpaper Engine")
+            statusIcon?.size = NSSize(width: 18, height: 18)
+            statusIcon?.isTemplate = false
+            button.image = statusIcon
+            button.toolTip = "Wallpaper Engine"
         }
-
-        
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: NSLocalizedString("Show window", comment: ""), action: #selector(showWindow), keyEquivalent: "s"))
-        menu.addItem(NSMenuItem(title: NSLocalizedString("Hide window", comment: ""), action: #selector(hideWindow), keyEquivalent: "h"))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: NSLocalizedString("Quit", comment: ""), action: #selector(quit), keyEquivalent: "q"))
-        statusItem.menu = menu
+        statusItem.menu = makeStatusMenu()
 
         // Create main window with ContentView
         window = NSWindow(
@@ -95,6 +98,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showWindow() {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        NotificationCenter.default.post(name: .wallpaperEngineShouldRefresh, object: nil)
         
     }
 
@@ -113,6 +117,76 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         engine?.terminateApplication()
         NSApp.terminate(nil)
+    }
+
+    @objc func toggleWallpaper() {
+        if isWallpaperRunning {
+            engine?.killAllDaemons()
+        } else {
+            engine?.startLastWallpaper()
+        }
+        updateStatusMenu()
+    }
+
+    @objc func nextWallpaper() {
+        engine?.nextWallpaper()
+        updateStatusMenu()
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        updateStatusMenu()
+    }
+
+    private var isWallpaperRunning: Bool {
+        engine?.isWallpaperRunning ?? false
+    }
+
+    private func makeStatusMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.delegate = self
+
+        toggleWallpaperItem = NSMenuItem(title: "", action: #selector(toggleWallpaper), keyEquivalent: "p")
+        toggleWallpaperItem.target = self
+        menu.addItem(toggleWallpaperItem)
+
+        showWindowItem = NSMenuItem(title: "", action: #selector(showWindow), keyEquivalent: "s")
+        showWindowItem.target = self
+        menu.addItem(showWindowItem)
+
+        nextWallpaperItem = NSMenuItem(title: "", action: #selector(nextWallpaper), keyEquivalent: "n")
+        nextWallpaperItem.target = self
+        menu.addItem(nextWallpaperItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        quitItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        updateStatusMenu()
+        return menu
+    }
+
+    private func updateStatusMenu() {
+        toggleWallpaperItem.title = isWallpaperRunning
+            ? menuText(zh: "停止壁纸", en: "Stop Wallpaper")
+            : menuText(zh: "开始壁纸", en: "Start Wallpaper")
+        showWindowItem.title = menuText(zh: "显示主界面", en: "Show Main Window")
+        nextWallpaperItem.title = menuText(zh: "下一个壁纸", en: "Next Wallpaper")
+        nextWallpaperItem.isEnabled = isWallpaperRunning
+        quitItem.title = menuText(zh: "退出", en: "Quit")
+    }
+
+    private func menuText(zh: String, en: String) -> String {
+        menuLanguageCode.hasPrefix("zh") ? zh : en
+    }
+
+    private var menuLanguageCode: String {
+        let selectedLanguage = UserDefaults.standard.string(forKey: UserDefaultsKeys.appLanguage) ?? "auto"
+        if selectedLanguage == "auto" {
+            return Locale.preferredLanguages.first ?? "en"
+        }
+        return selectedLanguage
     }
 }
 

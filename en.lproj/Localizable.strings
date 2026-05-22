@@ -16,53 +16,66 @@
 "video_thumbnail" = "Video thumbnail";
 
 // MARK: - Settings
-"wallpaper_folder" = "Wallpaper Folder";
-"select_folder_emoji" = "Select Folder 📁";
-"show_in_finder" = "Show in Finder 🗂";
-"video_scaling_mode" = "Video Scaling Mode";
-"random_on_startup" = "Random Wallpaper on Startup";
-"random_on_lid" = "Random Wallpaper on Lid Wakeup (Requires Application Restart)";
-"pause_when_active" = "Pause When App is Active";
-"video_volume" = "Video Volume";
-"optimize_codecs" = "Optimize Video Codecs";
-"optimize" = "Optimize 🛠️";
-"clear_cache" = "Clear Cache";
-"clear_cache_button" = "Clear Cache 🗑️";
-"reset_userdata" = "Reset UserData";
+"wallpaper_folder" = "Wallpaper folder";
+"select_folder_emoji" = "Choose folder";
+"show_in_finder" = "Show in Finder";
+"video_scaling_mode" = "How videos fit";
+"random_on_startup" = "Start with a random wallpaper";
+"random_on_lid" = "Change wallpaper when the lid wakes";
+"pause_when_active" = "Pause while this app is active";
+"vignette_bar" = "Add soft edge shading";
+"wallpaper_rotation" = "Auto-change wallpaper";
+"wallpaper_rotation_delay" = "Change every";
+"wallpaper_rotation_type" = "Change order";
+"video_volume" = "Wallpaper volume";
+"optimize_codecs" = "Make videos play smoother";
+"optimize" = "Optimize";
+"clear_cache" = "Clear cached previews";
+"clear_cache_button" = "Clear cache";
+"reset_userdata" = "Reset app data";
 "reset" = "Reset";
 "Steam Workshop" = "Steam Workshop";
 "Workshop URL or ID" = "Workshop URL or ID";
 "Import" = "Import";
 "Importing..." = "Importing...";
-"Workshop item imported" = "Workshop item imported";
-"Workshop import script was not found" = "Workshop import script was not found";
+"Workshop item imported" = "Imported. Ready when you are.";
+"Workshop import script was not found" = "I couldn't find the Workshop import script.";
 "Workshop import failed" = "Workshop import failed";
+"Workshop URL or ID is invalid" = "Invalid Workshop URL or ID";
+"Workshop item was not found" = "I couldn't find that Workshop item.";
+"Workshop item is not a supported video" = "This item doesn't include a playable .mp4 or .mov video.";
+"steamcmd was not found" = "I couldn't find steamcmd.";
+"Workshop download failed; check network or Steam" = "Download failed; check network or Steam";
 "Steam username" = "Steam username";
 "Steam password" = "Steam password";
 "Login" = "Login";
+"Check" = "Check";
 "Checking Steam login..." = "Checking...";
 "Steam login is valid" = "Logged in";
-"Steam login is required" = "Login required";
+"Steam login is required" = "Please log in";
 "Stop wallpaper" = "Stop wallpaper";
 "Opening Terminal..." = "Opening Terminal...";
-"Steam login terminal opened" = "Steam login terminal opened";
-"Steam login script was not found" = "Steam login script was not found";
-"Could not open Terminal" = "Could not open Terminal";
+"Steam login terminal opened" = "Login window opened. Finish it there, then I'll check.";
+"Steam login script was not found" = "I couldn't find the Steam login script.";
+"Could not open Terminal" = "I couldn't open Terminal.";
 
 // MARK: - Scaling Modes
 "scale_fill" = "Fill";
 "scale_fit" = "Fit";
 "scale_stretch" = "Stretch";
 "scale_center" = "Center";
-"scale_height_fill" = "HeightFill";
+"scale_height_fill" = "Fill height";
 
 // MARK: - Menu Bar
 "show_window" = "Show Window";
 "hide_window" = "Hide Window";
+"start_wallpaper" = "Start Wallpaper";
+"stop_wallpaper" = "Stop Wallpaper";
+"next_wallpaper" = "Next Wallpaper";
 "quit" = "Quit";
 
 // MARK: - File Dialog
-"select_folder_title" = "Select Wallpaper Folder";
+"select_folder_title" = "Choose a wallpaper folder";
 "choose" = "Choose";
 "select_folder_or_type" = "Select folder or type path";
 
@@ -70,8 +83,5 @@
 "display_resolution" = "%@ x %@";
 
 // MARK: - Language
-"app_language" = "App Language";
+"app_language" = "App language";
 "system_language" = "Follow System";
-"language_changed_title" = "Language Changed";
-"language_changed_message" = "Please restart the app for the language change to take effect.";
-"ok" = "OK";

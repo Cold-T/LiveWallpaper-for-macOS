@@ -59,9 +59,50 @@ extension View {
 }
 
 // MARK: - String Localization Extension
+enum AppLocalization {
+    nonisolated static func localizedString(
+        _ key: String,
+        languageOverride: String? = nil
+    ) -> String {
+        let selectedLanguage =
+            languageOverride
+            ?? UserDefaults.standard.string(forKey: "app_language")
+            ?? "auto"
+        let language =
+            selectedLanguage == "auto"
+            ? Locale.preferredLanguages.first ?? "en"
+            : selectedLanguage
+
+        for candidate in languageCandidates(for: language) {
+            if let path = Bundle.main.path(forResource: candidate, ofType: "lproj"),
+               let bundle = Bundle(path: path) {
+                return NSLocalizedString(key, tableName: nil, bundle: bundle, comment: "")
+            }
+        }
+
+        return NSLocalizedString(key, comment: "")
+    }
+
+    nonisolated private static func languageCandidates(for language: String) -> [String] {
+        let parts = language.split(separator: "-").map(String.init)
+        var candidates = [language]
+
+        if parts.count >= 2 {
+            candidates.append(parts.prefix(2).joined(separator: "-"))
+        }
+        if let baseLanguage = parts.first {
+            candidates.append(baseLanguage)
+        }
+        candidates.append("en")
+
+        var seen = Set<String>()
+        return candidates.filter { seen.insert($0).inserted }
+    }
+}
+
 extension String {
-    var localized: String {
-        return NSLocalizedString(self, comment: "")
+    nonisolated var localized: String {
+        AppLocalization.localizedString(self)
     }
 }
 
@@ -72,14 +113,18 @@ class LanguageManager: ObservableObject {
     @Published var currentLanguage: String {
         didSet {
             UserDefaults.standard.set(currentLanguage, forKey: UserDefaultsKeys.appLanguage)
-            UserDefaults.standard.set([currentLanguage], forKey: "AppleLanguages")
+            if currentLanguage == "auto" {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.set([currentLanguage], forKey: "AppleLanguages")
+            }
             UserDefaults.standard.synchronize()
         }
     }
 
     var availableLanguages: [(code: String, name: String)] {
         [
-            ("auto", "system_language".localized),
+            ("auto", localizedString("system_language")),
             ("zh-Hans", "简体中文"),
             ("en", "English"),
         ]
@@ -91,67 +136,62 @@ class LanguageManager: ObservableObject {
     }
 
     func localizedString(_ key: String) -> String {
-        let language =
-            currentLanguage == "auto" ? Locale.preferredLanguages.first ?? "en" : currentLanguage
-        guard
-            let path = Bundle.main.path(forResource: language, ofType: "lproj")
-                ?? Bundle.main.path(
-                    forResource: language.components(separatedBy: "-").first, ofType: "lproj"),
-            let bundle = Bundle(path: path)
-        else {
-            return NSLocalizedString(key, comment: "")
-        }
-        return NSLocalizedString(key, tableName: nil, bundle: bundle, comment: "")
+        AppLocalization.localizedString(key, languageOverride: currentLanguage)
     }
 }
 
 // MARK: - Localization
 enum L {
-    static let selectWallpaperFolder = NSLocalizedString("📁", comment: "")
-    static let generating = NSLocalizedString("Generating...", comment: "")
-    static let settings = NSLocalizedString("Settings", comment: "")
-    static let wallpaperFolder = NSLocalizedString("Wallpaper folder", comment: "")
-    static let selectFolderEmoji = NSLocalizedString("📁", comment: "")
-    static let showInFinder = NSLocalizedString("📂", comment: "")
-    static let videoScalingMode = NSLocalizedString("Video scaling mode", comment: "")
-    static let scaleFill = NSLocalizedString("Scale fill", comment: "")
-    static let scaleFit = NSLocalizedString("Scale fit", comment: "")
-    static let scaleStretch = NSLocalizedString("Scale stretch", comment: "")
-    static let scaleCenter = NSLocalizedString("Scale center", comment: "")
-    static let scaleHeightFill = NSLocalizedString("Scale height fill", comment: "")
-    static let randomOnStartup = NSLocalizedString("Random on startup", comment: "")
-    static let randomOnLid = NSLocalizedString("Random on lid", comment: "")
-    static let pauseWhenActive = NSLocalizedString("Pause when active", comment: "")
-    static let videoVolume = NSLocalizedString("Video volume", comment: "")
-    static let optimizeCodecs = NSLocalizedString("Optimize codecs", comment: "")
-    static let optimize = NSLocalizedString("Optimize", comment: "")
-    static let clearCache = NSLocalizedString("Clear cache", comment: "")
-    static let clearCacheButton = NSLocalizedString("Clear cache", comment: "")
-    static let resetUserData = NSLocalizedString("Reset userdata", comment: "")
-    static let reset = NSLocalizedString("Reset", comment: "")
-    static let selectFolderTitle = NSLocalizedString("Select folder title", comment: "")
-    static let choose = NSLocalizedString("Choose", comment: "")
-    static let selectFolderOrType = NSLocalizedString("Select folder or type", comment: "")
-    static let wallpaperRotation = NSLocalizedString("Wallpaper rotation", comment: "")
-    static let rotationType = NSLocalizedString("Wallpaper rotation type", comment: "")
-    static let vinttageBar = NSLocalizedString(
-        "Vignette bar (Reapply the wallpaper after change)", comment: "")
+    private static func tr(_ key: String) -> String {
+        LanguageManager.shared.localizedString(key)
+    }
 
-    static let rotationDelay = NSLocalizedString("Wallpaper rotation delay", comment: "")
-    static let steamWorkshop = NSLocalizedString("Steam Workshop", comment: "")
-    static let workshopPlaceholder = NSLocalizedString("Workshop URL or ID", comment: "")
-    static let importWorkshop = NSLocalizedString("Import", comment: "")
-    static let importingWorkshop = NSLocalizedString("Importing...", comment: "")
-    static let workshopImported = NSLocalizedString("Workshop item imported", comment: "")
-    static let steamUsername = NSLocalizedString("Steam username", comment: "")
-    static let steamPassword = NSLocalizedString("Steam password", comment: "")
-    static let steamLogin = NSLocalizedString("Login", comment: "")
-    static let checkingSteamLogin = NSLocalizedString("Checking Steam login...", comment: "")
-    static let steamLoggedIn = NSLocalizedString("Steam login is valid", comment: "")
-    static let steamLoginRequired = NSLocalizedString("Steam login is required", comment: "")
-    static let stopWallpaper = NSLocalizedString("Stop wallpaper", comment: "")
-    static let openingSteamLogin = NSLocalizedString("Opening Terminal...", comment: "")
-    static let steamLoginTerminalOpened = NSLocalizedString("Steam login terminal opened", comment: "")
+    static var selectWallpaperFolder: String { tr("select_wallpaper_folder") }
+    static var generating: String { tr("generating") }
+    static var settings: String { tr("settings") }
+    static var wallpaperFolder: String { tr("wallpaper_folder") }
+    static var selectFolderEmoji: String { tr("select_folder_emoji") }
+    static var showInFinder: String { tr("show_in_finder") }
+    static var videoScalingMode: String { tr("video_scaling_mode") }
+    static var scaleFill: String { tr("scale_fill") }
+    static var scaleFit: String { tr("scale_fit") }
+    static var scaleStretch: String { tr("scale_stretch") }
+    static var scaleCenter: String { tr("scale_center") }
+    static var scaleHeightFill: String { tr("scale_height_fill") }
+    static var randomOnStartup: String { tr("random_on_startup") }
+    static var randomOnLid: String { tr("random_on_lid") }
+    static var pauseWhenActive: String { tr("pause_when_active") }
+    static var videoVolume: String { tr("video_volume") }
+    static var optimizeCodecs: String { tr("optimize_codecs") }
+    static var optimize: String { tr("optimize") }
+    static var clearCache: String { tr("clear_cache") }
+    static var clearCacheButton: String { tr("clear_cache_button") }
+    static var resetUserData: String { tr("reset_userdata") }
+    static var reset: String { tr("reset") }
+    static var selectFolderTitle: String { tr("select_folder_title") }
+    static var choose: String { tr("choose") }
+    static var selectFolderOrType: String { tr("select_folder_or_type") }
+    static var wallpaperRotation: String { tr("wallpaper_rotation") }
+    static var rotationType: String { tr("wallpaper_rotation_type") }
+    static var vinttageBar: String { tr("vignette_bar") }
+    static var rotationDelay: String { tr("wallpaper_rotation_delay") }
+    static var appLanguage: String { tr("app_language") }
+    static var systemLanguage: String { tr("system_language") }
+    static var steamWorkshop: String { tr("Steam Workshop") }
+    static var workshopPlaceholder: String { tr("Workshop URL or ID") }
+    static var importWorkshop: String { tr("Import") }
+    static var importingWorkshop: String { tr("Importing...") }
+    static var workshopImported: String { tr("Workshop item imported") }
+    static var steamUsername: String { tr("Steam username") }
+    static var steamPassword: String { tr("Steam password") }
+    static var steamLogin: String { tr("Login") }
+    static var steamCheck: String { tr("Check") }
+    static var checkingSteamLogin: String { tr("Checking Steam login...") }
+    static var steamLoggedIn: String { tr("Steam login is valid") }
+    static var steamLoginRequired: String { tr("Steam login is required") }
+    static var stopWallpaper: String { tr("Stop wallpaper") }
+    static var openingSteamLogin: String { tr("Opening Terminal...") }
+    static var steamLoginTerminalOpened: String { tr("Steam login terminal opened") }
 }
 
 // MARK: - UserDefaults Keys
@@ -172,9 +212,14 @@ enum UserDefaultsKeys {
 
 }
 
+extension Notification.Name {
+    static let wallpaperEngineShouldRefresh = Notification.Name("WallpaperEngineShouldRefresh")
+}
+
 // MARK: - Main Content View
 struct ContentView: View {
     @StateObject private var viewModel = WallpaperViewModel()
+    @StateObject private var languageManager = LanguageManager.shared
     @State private var showSettings = false
     @StateObject private var displayManager = DisplayManager()
 
@@ -215,9 +260,10 @@ struct ContentView: View {
             .frame(minWidth: 600, minHeight: 250)
             //.sheet(isPresented: $showSettings) { SettingsView(viewModel: viewModel) }
             .onAppear {
-                viewModel.loadDisplays()
-                viewModel.reloadContent()
-                viewModel.checkSteamLoginStatus()
+                refreshContent()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .wallpaperEngineShouldRefresh)) { _ in
+                refreshContent()
             }
 
             if showSettings {
@@ -237,6 +283,12 @@ struct ContentView: View {
             }
 
         }.animation(.easeInOut, value: showSettings)
+    }
+
+    private func refreshContent() {
+        viewModel.loadDisplays()
+        viewModel.reloadContent()
+        viewModel.checkSteamLoginStatus()
     }
 }
 
@@ -295,22 +347,73 @@ struct ToolbarView: View {
 }
 
 struct SteamLoginStatusBadge: View {
-    let text: String
-    let isChecking: Bool
+    let status: SteamLoginStatus
 
     var body: some View {
         Group {
-            if isChecking {
+            switch status {
+            case .idle:
+                EmptyView()
+            case .checking:
                 ProgressView()
                     .controlSize(.small)
-            } else if !text.isEmpty {
-                Text(text)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            case .loggedIn(_), .loginRequired:
+                Text(status.label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(status.foregroundStyle)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(status.backgroundStyle, in: Capsule())
                     .lineLimit(1)
-                    .truncationMode(.tail)
             }
         }
+    }
+}
+
+enum SteamLoginStatus {
+    case idle
+    case checking
+    case loggedIn(String)
+    case loginRequired
+
+    var label: String {
+        switch self {
+        case .idle, .checking:
+            ""
+        case .loggedIn(let username):
+            username.isEmpty ? L.steamLoggedIn : "\(L.steamLoggedIn): \(username)"
+        case .loginRequired:
+            L.steamLogin
+        }
+    }
+
+    var foregroundStyle: Color {
+        switch self {
+        case .idle, .checking:
+            .secondary
+        case .loggedIn(_):
+            .green
+        case .loginRequired:
+            .red
+        }
+    }
+
+    var backgroundStyle: Color {
+        foregroundStyle.opacity(0.12)
+    }
+
+    var isLoggedIn: Bool {
+        if case .loggedIn(_) = self {
+            return true
+        }
+        return false
+    }
+
+    var isChecking: Bool {
+        if case .checking = self {
+            return true
+        }
+        return false
     }
 }
 
@@ -539,13 +642,17 @@ struct DisplayButton: View {
 // MARK: - Settings View
 struct SettingsView: View {
     @ObservedObject var viewModel: WallpaperViewModel
+    @ObservedObject private var languageManager = LanguageManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var showFolderPicker = false
     @State private var workshopInput = ""
     @State private var workshopStatus = ""
+    @State private var workshopStatusIsError = false
     @State private var steamLoginStatus = ""
     @State private var steamPassword = ""
     @State private var isImportingWorkshop = false
+    @State private var importProgress = 0.0
+    @State private var importProgressTask: Task<Void, Never>?
     @AppStorage(UserDefaultsKeys.steamUsername) var steamUsername = ""
     @AppStorage(UserDefaultsKeys.scaleMode) var scaleMode: Int = 0
     @State private var localMinutes: Int = 60
@@ -587,35 +694,47 @@ struct SettingsView: View {
 
 	                    SettingRow(title: L.steamWorkshop) {
 	                        VStack(alignment: .leading, spacing: 8) {
+                                HStack(alignment: .center, spacing: 8) {
+                                    SteamLoginStatusBadge(
+                                        status: viewModel.steamLoginStatus
+                                    )
+                                    .frame(width: 230, alignment: .leading)
+
+                                    Button(L.steamCheck) {
+                                        viewModel.checkSteamLoginStatus()
+                                    }
+                                    .frame(width: 96, height: 24)
+                                    .disabled(
+                                        steamUsername.trimmingCharacters(
+                                            in: .whitespacesAndNewlines
+                                        ).isEmpty || viewModel.steamLoginStatus.isChecking
+                                    )
+                                }
+
 	                            HStack(alignment: .center, spacing: 8) {
-		                                VStack(alignment: .leading, spacing: 6) {
-	                                        HStack(spacing: 6) {
-	                                            TextField(L.steamUsername, text: $steamUsername)
-	                                                .textFieldStyle(.roundedBorder)
-	                                                .frame(width: 160)
+		                            VStack(alignment: .leading, spacing: 6) {
+	                                    TextField(L.steamUsername, text: $steamUsername)
+	                                        .textFieldStyle(.roundedBorder)
+	                                        .frame(width: 230)
+                                            .onChange(of: steamUsername) { _, _ in
+                                                viewModel.resetSteamLoginStatus()
+                                            }
 
-	                                            SteamLoginStatusBadge(
-	                                                text: viewModel.steamLoginStatusText,
-	                                                isChecking: viewModel.isCheckingSteamLogin
-	                                            )
-	                                            .frame(width: 64, alignment: .leading)
-	                                        }
-
-		                                    SecureField(L.steamPassword, text: $steamPassword)
-		                                        .textFieldStyle(.roundedBorder)
-		                                        .frame(width: 230)
-		                                }
+		                                SecureField(L.steamPassword, text: $steamPassword)
+		                                    .textFieldStyle(.roundedBorder)
+		                                    .frame(width: 230)
+		                            }
 
 	                                Button(L.steamLogin) {
 	                                    openSteamLoginTerminal()
 	                                }
-	                                .frame(width: 74, height: 52)
+	                                .frame(width: 96, height: 52)
 	                                .disabled(
 	                                    steamUsername.trimmingCharacters(
 	                                        in: .whitespacesAndNewlines
 	                                    ).isEmpty || steamPassword.isEmpty
 	                                )
-		                            }
+		                        }
 
                             HStack {
                                 TextField(L.workshopPlaceholder, text: $workshopInput)
@@ -625,28 +744,31 @@ struct SettingsView: View {
                                 Button {
                                     importWorkshopItem()
                                 } label: {
-                                    if isImportingWorkshop {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                    } else {
-                                        Text(L.importWorkshop)
-                                    }
+                                    Text(isImportingWorkshop ? L.importingWorkshop : L.importWorkshop)
                                 }
+                                .frame(width: 96, height: 24)
                                 .disabled(
                                     isImportingWorkshop
                                         || workshopInput.trimmingCharacters(
                                             in: .whitespacesAndNewlines
                                         ).isEmpty
+                                        || !viewModel.steamLoginStatus.isLoggedIn
                                 )
+                            }
+
+                            if isImportingWorkshop {
+                                ProgressView(value: importProgress, total: 1.0)
+                                    .progressViewStyle(.linear)
+                                    .frame(width: 334)
                             }
 
                             if !workshopStatus.isEmpty {
                                 Text(workshopStatus)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(workshopStatusIsError ? .red : .secondary)
                                     .lineLimit(2)
                                     .fixedSize(horizontal: false, vertical: true)
-                                    .frame(width: 320, alignment: .leading)
+                                    .frame(width: 334, alignment: .leading)
                             }
 
                             if !steamLoginStatus.isEmpty {
@@ -655,7 +777,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                                     .lineLimit(2)
                                     .fixedSize(horizontal: false, vertical: true)
-                                    .frame(width: 320, alignment: .leading)
+                                    .frame(width: 334, alignment: .leading)
                             }
                         }
                     }
@@ -682,25 +804,17 @@ struct SettingsView: View {
                     Divider()
 
                     // Language Selection
-                    SettingRow(title: NSLocalizedString("App language", comment: "")) {
+                    SettingRow(title: L.appLanguage) {
                         Picker(
                             "",
                             selection: Binding(
-                                get: { LanguageManager.shared.currentLanguage },
+                                get: { languageManager.currentLanguage },
                                 set: { newValue in
-                                    LanguageManager.shared.currentLanguage = newValue
-                                    let alert = NSAlert()
-                                    alert.messageText = NSLocalizedString(
-                                        "language_changed_title", comment: "")
-                                    alert.informativeText = NSLocalizedString(
-                                        "language_changed_message", comment: "")
-                                    alert.alertStyle = .informational
-                                    alert.addButton(withTitle: NSLocalizedString("ok", comment: ""))
-                                    alert.runModal()
+                                    languageManager.currentLanguage = newValue
                                 }
                             )
                         ) {
-                            Text(NSLocalizedString("system_language", comment: "")).tag("auto")
+                            Text(L.systemLanguage).tag("auto")
                             Text("简体中文").tag("zh-Hans")
                             Text("English").tag("en")
                         }
@@ -956,16 +1070,51 @@ struct SettingsView: View {
 
     private func importWorkshopItem() {
         isImportingWorkshop = true
+        workshopStatusIsError = false
+        startImportProgress()
         workshopStatus = L.importingWorkshop
 
-        Task {
+        Task { @MainActor in
             do {
                 let output = try await viewModel.importWorkshopItem(workshopInput)
                 workshopStatus = output.isEmpty ? L.workshopImported : output
+                workshopStatusIsError = false
             } catch {
                 workshopStatus = error.localizedDescription
+                workshopStatusIsError = true
             }
+            finishImportProgress()
+            try? await Task.sleep(nanoseconds: 350_000_000)
             isImportingWorkshop = false
+            importProgress = 0
+        }
+    }
+
+    private func startImportProgress() {
+        importProgressTask?.cancel()
+        importProgress = 0.04
+        importProgressTask = Task { @MainActor in
+            while !Task.isCancelled && importProgress < 0.92 {
+                do {
+                    try await Task.sleep(nanoseconds: 180_000_000)
+                } catch {
+                    return
+                }
+
+                let remaining = 0.92 - importProgress
+                let step = max(0.006, remaining * 0.07)
+                withAnimation(.easeOut(duration: 0.18)) {
+                    importProgress = min(0.92, importProgress + step)
+                }
+            }
+        }
+    }
+
+    private func finishImportProgress() {
+        importProgressTask?.cancel()
+        importProgressTask = nil
+        withAnimation(.easeOut(duration: 0.2)) {
+            importProgress = 1
         }
     }
 
@@ -975,6 +1124,7 @@ struct SettingsView: View {
         do {
             try SteamLoginTerminal(username: steamUsername, password: steamPassword).open()
             steamLoginStatus = L.steamLoginTerminalOpened
+            viewModel.scheduleSteamLoginStatusChecks()
         } catch {
             steamLoginStatus = error.localizedDescription
         }
@@ -1017,12 +1167,51 @@ enum WorkshopImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingScript:
-            return NSLocalizedString("Workshop import script was not found", comment: "")
-        case .failed(_, let output):
-            return output.isEmpty
-                ? NSLocalizedString("Workshop import failed", comment: "")
-                : output
+            return "Workshop import script was not found".localized
+        case .failed(let status, let output):
+            let reason = Self.failureReason(status: status, output: output)
+            guard !output.isEmpty else {
+                return reason
+            }
+            return "\(reason)\n\(output)"
         }
+    }
+
+    private static func failureReason(status: Int32, output: String) -> String {
+        let lowercasedOutput = output.lowercased()
+
+        if status == 2 || lowercasedOutput.contains("could not parse") {
+            return "Workshop URL or ID is invalid".localized
+        }
+
+        if status == 3 || lowercasedOutput.contains("directory was not found") {
+            return "Workshop item was not found".localized
+        }
+
+        if status == 4 || lowercasedOutput.contains("no .mp4/.mov") {
+            return "Workshop item is not a supported video".localized
+        }
+
+        if status == 127 || lowercasedOutput.contains("steamcmd was not found") {
+            return "steamcmd was not found".localized
+        }
+
+        if lowercasedOutput.contains("network")
+            || lowercasedOutput.contains("timeout")
+            || lowercasedOutput.contains("connection")
+            || lowercasedOutput.contains("failed to connect")
+            || lowercasedOutput.contains("download failed") {
+            return "Workshop download failed; check network or Steam".localized
+        }
+
+        if lowercasedOutput.contains("login failure")
+            || lowercasedOutput.contains("password")
+            || lowercasedOutput.contains("steam guard")
+            || lowercasedOutput.contains("access denied") {
+            return "Steam login is required".localized
+        }
+
+        return "Workshop import failed".localized
     }
 }
 
@@ -1115,9 +1304,9 @@ enum SteamLoginTerminalError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingScript:
-            return NSLocalizedString("Steam login script was not found", comment: "")
+            return "Steam login script was not found".localized
         case .failedToOpen:
-            return NSLocalizedString("Could not open Terminal", comment: "")
+            return "Could not open Terminal".localized
         }
     }
 }
@@ -1335,10 +1524,10 @@ class WallpaperViewModel: ObservableObject {
     @Published var pauseOnAppFocus: Bool = true
     @Published var volume: Double = 50.0
     @Published var vinttageBar: Bool = true
-    @Published var steamLoginStatusText: String = ""
-    @Published var isCheckingSteamLogin: Bool = false
+    @Published var steamLoginStatus: SteamLoginStatus = .idle
 
     private var currentReloadID = UUID()
+    private var steamLoginCheckTask: Task<Void, Never>?
     private let reloadIDLock = NSLock()
     private let defaults = UserDefaults.standard
     let engine: WallpaperEngine
@@ -1350,6 +1539,7 @@ class WallpaperViewModel: ObservableObject {
     }
 
     func invalidate() {
+        cancelSteamLoginStatusChecks()
         engine.removeNotifications()
     }
 
@@ -1433,23 +1623,50 @@ class WallpaperViewModel: ObservableObject {
     }
 
     func checkSteamLoginStatus() {
+        Task {
+            _ = await refreshSteamLoginStatus()
+        }
+    }
+
+    @discardableResult
+    private func refreshSteamLoginStatus() async -> Bool {
         let username = defaults.string(forKey: UserDefaultsKeys.steamUsername)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
         guard !username.isEmpty else {
-            steamLoginStatusText = ""
-            isCheckingSteamLogin = false
-            return
+            steamLoginStatus = .idle
+            return false
         }
 
-        isCheckingSteamLogin = true
-        steamLoginStatusText = ""
+        steamLoginStatus = .checking
 
-        Task {
-            let isLoggedIn = await SteamLoginStatusChecker.isLoggedIn(username: username)
-            self.steamLoginStatusText = isLoggedIn ? "OK" : "Login"
-            self.isCheckingSteamLogin = false
+        let isLoggedIn = await SteamLoginStatusChecker.isLoggedIn(username: username)
+        steamLoginStatus = isLoggedIn ? .loggedIn(username) : .loginRequired
+        return isLoggedIn
+    }
+
+    func scheduleSteamLoginStatusChecks() {
+        cancelSteamLoginStatusChecks()
+        steamLoginCheckTask = Task { [weak self] in
+            for _ in 0..<5 {
+                try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+                if Task.isCancelled { return }
+                guard let self else { return }
+                if await self.refreshSteamLoginStatus() {
+                    return
+                }
+            }
         }
+    }
+
+    func cancelSteamLoginStatusChecks() {
+        steamLoginCheckTask?.cancel()
+        steamLoginCheckTask = nil
+    }
+
+    func resetSteamLoginStatus() {
+        cancelSteamLoginStatusChecks()
+        steamLoginStatus = .idle
     }
 
     func clearCache() {

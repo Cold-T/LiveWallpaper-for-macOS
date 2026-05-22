@@ -1215,6 +1215,10 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 }
 
 - (void)checkWallpapers{
+    if (!_wallpaperList) {
+        _wallpaperList = [NSMutableArray array];
+    }
+
     if(_wallpaperList.count > 0){
         [_wallpaperList removeAllObjects];
     }
@@ -1222,6 +1226,11 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSError *error = nil;
     folderPath = [self getFolderPath];
+    if (!folderPath.length) {
+        NSLog(@"Wallpaper folder path is empty.");
+        return;
+    }
+
     NSArray<NSString *> *allFiles =
         [fileManager contentsOfDirectoryAtPath:folderPath error:&error];
 
@@ -1230,6 +1239,11 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
         NSLog(@"Wallaper List returns Empty");
         return;
       
+    }
+
+    if (!allFiles) {
+        NSLog(@"Wallpaper folder has no readable contents: %@", folderPath);
+        return;
     }
     
     for (NSString *fileName in allFiles) {
@@ -1250,16 +1264,30 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     
 }
 
+- (NSUInteger)availableWallpaperCount {
+    return _wallpaperList.count;
+}
+
 -(void) nextWallpaper{
+    [self checkWallpapers];
+    NSUInteger wallpaperCount = _wallpaperList.count;
+    if (wallpaperCount == 0) {
+        NSLog(@"⚠️ Cannot go to next wallpaper: wallpaperList is empty.");
+        [self stopWallpaperRotation];
+        return;
+    }
+
+    if (wallpaperCount == 1) {
+        NSLog(@"Only one wallpaper is available; next wallpaper is a no-op.");
+        return;
+    }
     
     if(_rotationType == 1){
-        if (_wallpaperList == nil || _wallpaperList.count == 0) {
-                NSLog(@"⚠️ Cannot rotate: wallpaperList is empty.");
-                [self stopWallpaperRotation];
-                return;
-            }
-        
-        _currentWallpaper = (_currentWallpaper + 1) % _wallpaperList.count;
+        if (_currentWallpaper < 0 || _currentWallpaper >= wallpaperCount) {
+            _currentWallpaper = 0;
+        }
+
+        _currentWallpaper = (_currentWallpaper + 1) % wallpaperCount;
         for (Display display : displays) {
 
           if (!display.videoPath.empty()) {
@@ -1344,9 +1372,9 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 }
 
 - (void)terminateApplication {
-  SaveSystem::Save(displays);
   [self killAllDaemons];
-    [self removeNotifications];
+  SaveSystem::Save(displays);
+  [self removeNotifications];
 }
 
 - (BOOL)isFirstLaunch {

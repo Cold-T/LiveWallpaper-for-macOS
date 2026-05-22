@@ -85,6 +85,7 @@
 -(BOOL)isFirstLaunch;
 
 - (void)checkWallpapers;
+- (NSUInteger)availableWallpaperCount;
 
 -(void) nextWallpaper;
 -(void) startLastWallpaper;
@@ -101,7 +102,7 @@
 @property(nonatomic, assign, getter=isWallpaperRunning) BOOL wallpaperRunning;
 @property(nonatomic, strong) NSString *currentVideoPath;
 @property(nonatomic, assign) std::list<pid_t> daemonPIDs;
-@property(nonatomic, assign) NSMutableArray<NSString* >* wallpaperList;
+@property(nonatomic, strong) NSMutableArray<NSString* >* wallpaperList;
 @property(assign) int currentWallpaper;
 @property (nonatomic, strong) NSTimer *wallpaperTimer;
 typedef NS_ENUM(NSInteger, RotationType) {

@@ -17,48 +17,61 @@
 
 // MARK: - 设置项
 "wallpaper_folder" = "壁纸文件夹";
-"select_folder_emoji" = "选择文件夹 📁";
-"show_in_finder" = "在 Finder 中显示 🗂";
-"video_scaling_mode" = "视频缩放模式";
-"random_on_startup" = "启动时随机壁纸";
-"random_on_lid" = "开盖唤醒时随机壁纸（需要重启应用）";
-"pause_when_active" = "应用激活时暂停";
-"video_volume" = "视频音量";
-"optimize_codecs" = "优化视频编码";
-"optimize" = "优化 🛠️";
-"clear_cache" = "清除缓存";
-"clear_cache_button" = "清除缓存 🗑️";
-"reset_userdata" = "重置用户数据";
+"select_folder_emoji" = "选择文件夹";
+"show_in_finder" = "在 Finder 中显示";
+"video_scaling_mode" = "视频如何适配";
+"random_on_startup" = "启动时换一张随机壁纸";
+"random_on_lid" = "开盖唤醒时换一张壁纸";
+"pause_when_active" = "使用本应用时暂停壁纸";
+"vignette_bar" = "添加柔和边缘";
+"wallpaper_rotation" = "自动切换壁纸";
+"wallpaper_rotation_delay" = "每隔多久切换";
+"wallpaper_rotation_type" = "切换顺序";
+"video_volume" = "壁纸音量";
+"optimize_codecs" = "让视频播放更顺畅";
+"optimize" = "优化";
+"clear_cache" = "清理预览缓存";
+"clear_cache_button" = "清理缓存";
+"reset_userdata" = "重置应用数据";
 "reset" = "重置";
 "Steam Workshop" = "Steam 创意工坊";
 "Workshop URL or ID" = "创意工坊 URL 或 ID";
 "Import" = "导入";
 "Importing..." = "导入中...";
-"Workshop item imported" = "创意工坊项目已导入";
-"Workshop import script was not found" = "找不到创意工坊导入脚本";
+"Workshop item imported" = "导入好了，随时可以使用。";
+"Workshop import script was not found" = "没找到创意工坊导入脚本。";
 "Workshop import failed" = "创意工坊导入失败";
+"Workshop URL or ID is invalid" = "创意工坊 URL 或 ID 无效";
+"Workshop item was not found" = "没找到这个创意工坊项目。";
+"Workshop item is not a supported video" = "这个项目里没有可播放的 .mp4 或 .mov 视频。";
+"steamcmd was not found" = "没找到 steamcmd。";
+"Workshop download failed; check network or Steam" = "下载失败，请检查网络或 Steam";
 "Steam username" = "Steam 用户名";
 "Steam password" = "Steam 密码";
 "Login" = "登录";
+"Check" = "检查";
 "Checking Steam login..." = "检测中";
 "Steam login is valid" = "已登录";
-"Steam login is required" = "需登录";
+"Steam login is required" = "请先登录";
 "Stop wallpaper" = "关闭壁纸";
 "Opening Terminal..." = "正在打开终端...";
-"Steam login terminal opened" = "Steam 登录终端已打开";
-"Steam login script was not found" = "找不到 Steam 登录脚本";
-"Could not open Terminal" = "无法打开终端";
+"Steam login terminal opened" = "登录窗口已打开，完成后我会自动检查。";
+"Steam login script was not found" = "没找到 Steam 登录脚本。";
+"Could not open Terminal" = "没能打开终端。";
 
 // MARK: - 缩放模式
 "scale_fill" = "填充";
 "scale_fit" = "适应";
 "scale_stretch" = "拉伸";
 "scale_center" = "居中";
-"scale_height_fill" = "高度填充";
+"scale_height_fill" = "填满高度";
 
 // MARK: - 菜单栏
 "show_window" = "显示窗口";
 "hide_window" = "隐藏窗口";
+"start_wallpaper" = "开始壁纸";
+"stop_wallpaper" = "停止壁纸";
+"next_wallpaper" = "下一个壁纸";
 "quit" = "退出";
 
 // MARK: - 文件对话框
@@ -73,9 +86,6 @@
 // MARK: - 语言设置
 "app_language" = "应用语言";
 "system_language" = "跟随系统";
-"language_changed_title" = "语言已更改";
-"language_changed_message" = "请重启应用以使语言更改生效。";
-"ok" = "确定";
 
 // MARK: - 质量标签
 "quality_4k" = "4K";
