@@ -24,7 +24,7 @@ LiveWallpaper 可以通过 `steamcmd` 下载 Steam Wallpaper Engine Workshop 项
 
 ## 安装
 
-从 [Releases](https://github.com/Cold-T/LiveWallpaper/releases) 下载最新的 `LiveWallpaper.dmg`，打开后将 `LiveWallpaper.app` 移到 `Applications`。
+从 [Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases) 下载最新的 `LiveWallpaper.dmg`，打开后将 `LiveWallpaper.app` 移到 `Applications`。
 
 ## 从源码编译
 
@@ -35,7 +35,7 @@ LiveWallpaper 可以通过 `steamcmd` 下载 Steam Wallpaper Engine Workshop 项
 运行：
 
 ```sh
-git clone https://github.com/Cold-T/LiveWallpaper.git
+git clone https://github.com/Cold-T/LiveWallpaper-for-macOS.git
 cd LiveWallpaper
 xcodebuild -project LiveWallpaper.xcodeproj -scheme LiveWallpaper -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```

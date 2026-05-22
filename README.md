@@ -25,7 +25,7 @@ Use Workshop content only through your own Steam account and only when you have 
 
 ## Installation
 
-Download the latest `LiveWallpaper.dmg` from [Releases](https://github.com/Cold-T/LiveWallpaper/releases), open it, and move `LiveWallpaper.app` to `Applications`.
+Download the latest `LiveWallpaper.dmg` from [Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases), open it, and move `LiveWallpaper.app` to `Applications`.
 
 ## Build from source
 - macOS 14+
@@ -35,7 +35,7 @@ Download the latest `LiveWallpaper.dmg` from [Releases](https://github.com/Cold-
 Run:
 
 ```sh
-git clone https://github.com/Cold-T/LiveWallpaper.git
+git clone https://github.com/Cold-T/LiveWallpaper-for-macOS.git
 cd LiveWallpaper
 xcodebuild -project LiveWallpaper.xcodeproj -scheme LiveWallpaper -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
