@@ -44,9 +44,8 @@ Usage:
 Downloads a Steam Wallpaper Engine Workshop item or collection/list URL, finds
 directly referenced .mp4/.mov videos, imports them into LiveWallpaper's
 wallpaper folder, and starts playback through wallpaperdaemon when a
-LiveWallpaper.app bundle or daemon path is available. Scene packages, web
-wallpapers, application wallpapers, and other Workshop project types are not
-supported yet.
+LiveWallpaper.app bundle or daemon path is available. Scene, Web and Video projects keep their full directories for the original
+Wallpaper Engine player. Application wallpapers are not supported.
 
 Environment:
   STEAM_USERNAME                         Steam account name, usually loaded from .env.
@@ -132,7 +131,9 @@ import json
 import sys
 from pathlib import Path
 
-data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8-sig"))
+if not isinstance(data, dict):
+    raise SystemExit("Project metadata must be a JSON object")
 value = data.get(sys.argv[2], "")
 print(value if isinstance(value, str) else "")
 PY
@@ -245,9 +246,32 @@ import_downloaded_item() {
   local title=""
   local type=""
   if [[ -f "$project_json" ]]; then
-    title="$(read_project_field "$project_json" title)"
-    type="$(read_project_field "$project_json" type)"
+    title="$(read_project_field "$project_json" title)" || return 4
+    type="$(read_project_field "$project_json" type)" || return 4
   fi
+
+  # Preserve the complete project and relative resources for the original player.
+  case "$(printf '%s' "$type" | tr '[:upper:]' '[:lower:]')" in
+    scene|web|video)
+      local imported_project
+      imported_project="$(python3 "$SCRIPT_DIR/import_engine_project.py" "$item_dir" "$IMPORT_DIR" "$item_id" --mode "$IMPORT_MODE")" || return 4
+      IMPORTED_ITEM_IDS+=("$item_id")
+      IMPORTED_PATHS+=("$imported_project")
+      IMPORTED_FRAME_PATHS+=("$item_dir/.livewallpaper-no-static-frame.png")
+      echo "Workshop item: $item_id"
+      echo "Title: $title"
+      echo "Type: $type"
+      echo "Imported: $imported_project"
+      return 0
+      ;;
+    "")
+      # Legacy loose video downloads may have no project type.
+      ;;
+    *)
+      echo "Unsupported Workshop project type: $type" >&2
+      return 4
+      ;;
+  esac
 
   local video_path=""
   video_path="$(find_video_file "$item_dir")" || {
@@ -255,8 +279,7 @@ import_downloaded_item() {
     if [[ -n "$type" ]]; then
       echo "Workshop project type: $type" >&2
     fi
-    echo "Current LiveWallpaper playback supports video Workshop items only: .mp4 and .mov." >&2
-    echo "scene.pkg, web, application, and other Wallpaper Engine project types are not supported yet." >&2
+    echo "Expected a complete Scene, Web or Video project, or a loose .mp4/.mov video." >&2
     return 4
   }
 
@@ -364,9 +387,9 @@ if [[ "$IS_COLLECTION" == "1" ]]; then
   for item_id in "${WORKSHOP_ITEM_IDS[@]}"; do
     echo
     echo "Downloading collection item: $item_id"
-    download_single_item "$item_id"
-
-    if import_downloaded_item "$item_id"; then
+    # A failed child download must not abort the whole collection or import
+    # stale files left by an earlier attempt.
+    if download_single_item "$item_id" && import_downloaded_item "$item_id"; then
       :
     else
       FAILED_COUNT=$((FAILED_COUNT + 1))
@@ -389,17 +412,19 @@ else
   fi
 fi
 
-defaults write uk.coldt.LiveWallpaper WallpaperFolder "$IMPORT_DIR"
-defaults write uk.coldt.LiveWallpaper WallpaperFolder "$IMPORT_DIR"
+# The UI already owns its folder setting. CLI may opt into a specific domain.
+if [[ -n "${LIVEWALLPAPER_DEFAULTS_DOMAIN:-}" ]]; then
+  defaults write "$LIVEWALLPAPER_DEFAULTS_DOMAIN" WallpaperFolder "$IMPORT_DIR"
+fi
 
 if [[ "${#IMPORTED_PATHS[@]}" -eq 0 ]]; then
-  echo "No .mp4/.mov file was imported." >&2
+  echo "No supported wallpaper was imported." >&2
   exit 4
 fi
 
 echo
 if [[ "$IS_COLLECTION" == "1" ]]; then
-  echo "Imported collection: ${#IMPORTED_PATHS[@]} videos"
+  echo "Imported collection: ${#IMPORTED_PATHS[@]} wallpapers"
   if [[ "$FAILED_COUNT" -gt 0 ]]; then
     echo "Skipped items: $FAILED_COUNT"
   fi
@@ -410,6 +435,11 @@ echo "LiveWallpaper folder: $IMPORT_DIR"
 
 if [[ "${LIVEWALLPAPER_SKIP_PLAY:-0}" == "1" ]]; then
   echo "Playback skipped."
+  exit 0
+fi
+
+if [[ "${IMPORTED_PATHS[0]}" == *.weproject ]]; then
+  echo "Imported original Wallpaper Engine project. Open LiveWallpaper and select it to play."
   exit 0
 fi
 

@@ -1,0 +1,28 @@
+{
+  "status": "Historical pre-v18 instrumented triplet; not the current selection. Use release-candidate-schema1.json for v18.",
+  "modules": {
+    "winegstreamer.dll": {
+      "sha256": "df9ce17519d944f68001e47ea4a16560b4f29e916bc9d13b0d712561c805a5ad",
+      "role": "Source FIFO+private source pool+CPU output cache; diagnostic timing retained."
+    },
+    "winegstreamer.so": {
+      "sha256": "d4e6e00c874ceb0f89ccabd3691c508499c443daa23979ef976a0a98e0e9d84a",
+      "role": "Matching38-slot atomic read + raw-caps classification; unchanged frozen Unix module."
+    },
+    "mfmediaengine.dll": {
+      "sha256": "a3ea3fc628b3d4712b29fdf26d27a7c695765d52f4995f66a03fa0d0ab6c4aaf",
+      "role": "Loop v3 + sink new-segment reset + perloop timing."
+    }
+  },
+  "original_windows_exe": "No modifications; launcher continues using the original engine.",
+  "excluded": [
+    "direct D3D staging v1-v4",
+    "output stride repair v3/v4",
+    "shader/author asset changes",
+    "playback rate changes"
+  ],
+  "source_manifest": "source-manifest.json",
+  "patch": "wine11-cache-pool-loop.patch",
+  "build": "build.sh",
+  "diagnostics": "QPC/low-noise perloop timing retained to reproduce the actually tested candidate. No release timing removal claimed tested."
+}

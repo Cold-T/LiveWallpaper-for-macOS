@@ -1,0 +1,108 @@
+--- a/dlls/mfmediaengine/main.c
++++ b/dlls/mfmediaengine/main.c
+@@ -205,7 +205,6 @@
+             } cb;
+         } d3d11;
+     } video_frame;
+-    struct { ULONGLONG calls, ready, first_wall, last_wall, first_clock_wall; LONGLONG first_clock, last_clock, last_pts; BOOL clock_valid; } timing;
+     CRITICAL_SECTION cs;
+ };
+ 
+@@ -937,21 +936,6 @@
+     if (engine->flags & (FLAGS_ENGINE_SHUT_DOWN | FLAGS_ENGINE_SOURCE_PENDING | FLAGS_ENGINE_SEEKING))
+         return TRUE;
+ 
+-    {
+-        struct video_sink_timing samples;
+-        LONGLONG clock = 0, system = 0;
+-        ULONGLONG wall = GetTickCount64();
+-        HRESULT clock_hr = engine->clock ? IMFPresentationClock_GetCorrelatedTime(engine->clock, 0, &clock, &system) : E_FAIL;
+-        video_frame_sink_timing_snapshot(engine->presentation.frame_sink, &samples);
+-        TRACE_(mfloop)("Timing engine %p wall_ms %s tick_span_ms %s tick_calls %s tick_ready %s first_clock %s first_clock_wall %s clock_valid %u last_tick_clock %s last_pts %s eos_clock %s system %s clock_hr %#lx rate %.6f samples %s full %s first_sample_wall %s last_sample_wall %s first_sample_pts %s last_sample_pts %s\n",
+-            engine, wine_dbgstr_longlong(wall), wine_dbgstr_longlong(engine->timing.calls ? wall - engine->timing.first_wall : 0),
+-            wine_dbgstr_longlong(engine->timing.calls), wine_dbgstr_longlong(engine->timing.ready),
+-            wine_dbgstr_longlong(engine->timing.first_clock), wine_dbgstr_longlong(engine->timing.first_clock_wall), engine->timing.clock_valid, wine_dbgstr_longlong(engine->timing.last_clock), wine_dbgstr_longlong(engine->timing.last_pts),
+-            wine_dbgstr_longlong(clock), wine_dbgstr_longlong(system), clock_hr, engine->playback_rate,
+-            wine_dbgstr_longlong(samples.samples), wine_dbgstr_longlong(samples.full), wine_dbgstr_longlong(samples.first_wall),
+-            wine_dbgstr_longlong(samples.last_wall), wine_dbgstr_longlong(samples.first_pts), wine_dbgstr_longlong(samples.last_pts));
+-        memset(&engine->timing, 0, sizeof(engine->timing));
+-    }
+     media_engine_set_flag(engine, FLAGS_ENGINE_IS_ENDED, FALSE);
+     if (engine->flags & FLAGS_ENGINE_PAUSED)
+     {
+@@ -2944,20 +2928,8 @@
+     else
+     {
+         MFTIME clocktime;
+-        HRESULT clock_hr;
+-        ULONGLONG wall = GetTickCount64();
+-        if (!engine->timing.calls) engine->timing.first_wall = wall;
+-        ++engine->timing.calls;
+-        engine->timing.last_wall = wall;
+-        clock_hr = IMFPresentationClock_GetTime(engine->clock, &clocktime);
+-        /* Match the original call and result path; collect only valid clock values. */
+-        if (SUCCEEDED(clock_hr) && !(engine->flags & FLAGS_ENGINE_SEEKING))
+-        {
+-            if (!engine->timing.clock_valid) { engine->timing.first_clock = clocktime; engine->timing.first_clock_wall = wall; engine->timing.clock_valid = TRUE; }
+-            engine->timing.last_clock = clocktime;
+-        }
++        IMFPresentationClock_GetTime(engine->clock, &clocktime);
+         hr = video_frame_sink_get_pts(engine->presentation.frame_sink, clocktime, pts);
+-        if (hr == S_OK) { ++engine->timing.ready; engine->timing.last_pts = *pts; }
+     }
+ 
+     LeaveCriticalSection(&engine->cs);
+--- a/dlls/mfmediaengine/video_frame_sink.c
++++ b/dlls/mfmediaengine/video_frame_sink.c
+@@ -103,7 +103,6 @@
+     struct sample_queue queue;
+     bool sample_request_pending;
+     bool eos;
+-    struct video_sink_timing timing;
+     CRITICAL_SECTION cs;
+ };
+ 
+@@ -415,11 +414,6 @@
+ 
+         if (SUCCEEDED(hr))
+         {
+-            ULONGLONG wall = GetTickCount64();
+-            if (!sink->timing.samples) { sink->timing.first_wall = wall; sink->timing.first_pts = sampletime; }
+-            ++sink->timing.samples;
+-            sink->timing.last_wall = wall;
+-            sink->timing.last_pts = sampletime;
+             if (!(sink->flags & FLAGS_FIRST_FRAME))
+             {
+                 video_frame_sink_notify(sink, MF_MEDIA_ENGINE_EVENT_FIRSTFRAMEREADY);
+@@ -432,7 +426,6 @@
+ 
+             if (sink->queue.used != ARRAY_SIZE(sink->queue.samples))
+                 video_frame_sink_stream_request_sample(sink);
+-            else ++sink->timing.full;
+         }
+     }
+ 
+@@ -1333,13 +1326,3 @@
+ {
+     return video_frame_sink_Release(&sink->IMFMediaSink_iface);
+ }
+-
+-void video_frame_sink_timing_snapshot(struct video_frame_sink *sink, struct video_sink_timing *out)
+-{
+-    memset(out, 0, sizeof(*out));
+-    if (!sink) return;
+-    EnterCriticalSection(&sink->cs);
+-    *out = sink->timing;
+-    memset(&sink->timing, 0, sizeof(sink->timing));
+-    LeaveCriticalSection(&sink->cs);
+-}
+--- a/dlls/mfmediaengine/mediaengine_private.h
++++ b/dlls/mfmediaengine/mediaengine_private.h
+@@ -27,7 +27,3 @@
+ int video_frame_sink_get_sample(struct video_frame_sink *sink, IMFSample **sample);
+ HRESULT video_frame_sink_get_pts(struct video_frame_sink *sink, MFTIME clocktime, LONGLONG *pts);
+ void video_frame_sink_notify_end_of_presentation_segment(struct video_frame_sink *sink);
+-
+-/* Diagnostic snapshot only: all fields protected by the existing sink cs. */
+-struct video_sink_timing { ULONGLONG samples, full, first_wall, last_wall; LONGLONG first_pts, last_pts; };
+-void video_frame_sink_timing_snapshot(struct video_frame_sink *, struct video_sink_timing *);

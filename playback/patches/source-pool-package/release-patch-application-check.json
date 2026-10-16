@@ -1,0 +1,9 @@
+{
+  "release_source_matches_frozen_v3": {
+    "dlls/mfmediaengine/main.c": true,
+    "dlls/mfmediaengine/video_frame_sink.c": true,
+    "dlls/mfmediaengine/mediaengine_private.h": true
+  },
+  "scratch": "/private/tmp/lw-sourcepool-release-check-v1vl1az7",
+  "full_script_build": "not run"
+}

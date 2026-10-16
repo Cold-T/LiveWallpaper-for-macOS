@@ -1,0 +1,20 @@
+--- a/dlls/winegstreamer/wg_parser.c
++++ b/dlls/winegstreamer/wg_parser.c
+@@ -134,9 +134,17 @@
+ static bool caps_is_compressed(GstCaps *caps)
+ {
+     struct wg_format format;
++    const char *name;
+ 
+     if (!caps)
+         return false;
++
++    /* Raw pad capabilities can contain format lists, size ranges and memory
++     * features. Classifying them does not require a fixed GstVideoInfo. */
++    name = gst_structure_get_name(gst_caps_get_structure(caps, 0));
++    if (!strcmp(name, "video/x-raw") || !strcmp(name, "audio/x-raw"))
++        return false;
++
+     wg_format_from_caps(&format, caps);
+ 
+     return format.major_type != WG_MAJOR_TYPE_UNKNOWN

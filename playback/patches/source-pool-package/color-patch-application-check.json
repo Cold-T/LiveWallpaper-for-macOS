@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "original_archive_sha256": "f09e8153aa46a581d2b56a5b1363b04832070b9409d9244a68cf482b243ff14a",
+  "all_patched_source_files_match": 12,
+  "fuzz": 0,
+  "stages": [
+    {
+      "patch": "wine11-cache-pool-loop.patch",
+      "output": "patching file 'dlls/mfmediaengine/main.c'\npatching file 'dlls/mfmediaengine/mediaengine_private.h'\npatching file 'dlls/mfmediaengine/video_frame_sink.c'\npatching file 'dlls/winegstreamer/gst_private.h'\npatching file 'dlls/winegstreamer/main.c'\npatching file 'dlls/winegstreamer/media_source.c'\npatching file 'dlls/winegstreamer/source_buffer_private.h'\npatching file 'dlls/winegstreamer/timing_private.h'\npatching file 'dlls/winegstreamer/unixlib.h'\npatching file 'dlls/winegstreamer/video_processor.c'\npatching file 'dlls/winegstreamer/wg_parser.c'\npatching file 'dlls/winegstreamer/wg_sample.c'"
+    },
+    {
+      "patch": "release-mediaengine-delta.patch",
+      "output": "patching file 'dlls/mfmediaengine/main.c'\npatching file 'dlls/mfmediaengine/video_frame_sink.c'\npatching file 'dlls/mfmediaengine/mediaengine_private.h'"
+    },
+    {
+      "patch": "color-format-transfer.patch",
+      "output": "patching file 'dlls/mfmediaengine/main.c'"
+    }
+  ]
+}

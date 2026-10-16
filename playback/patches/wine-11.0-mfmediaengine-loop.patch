@@ -1,0 +1,56 @@
+--- a/dlls/mfmediaengine/main.c
++++ b/dlls/mfmediaengine/main.c
+@@ -923,6 +923,41 @@
+ 
+ static HRESULT media_engine_set_current_time(struct media_engine *engine, double seektime);
+ 
++/* The caller holds engine->cs. A looping presentation must not emit ENDED:
++ * clients may permanently stop their tick worker on that notification. */
++static BOOL media_engine_handle_loop_end(struct media_engine *engine)
++{
++    DWORD caps;
++    HRESULT hr;
++
++    if (!(engine->flags & FLAGS_ENGINE_LOOP)) return FALSE;
++    if (engine->flags & (FLAGS_ENGINE_SHUT_DOWN | FLAGS_ENGINE_SOURCE_PENDING)) return TRUE;
++
++    media_engine_set_flag(engine, FLAGS_ENGINE_IS_ENDED, FALSE);
++    if (engine->flags & FLAGS_ENGINE_PAUSED)
++    {
++        /* Do not restart behind a concurrent Pause. Play uses this position. */
++        engine->presentation.start_position.vt = VT_I8;
++        engine->presentation.start_position.hVal.QuadPart = 0;
++        return TRUE;
++    }
++
++    /* set_current_time uses session Start, tracks SEEKING/next_seek, and emits
++     * the existing seek notifications; never start a second clock here. */
++    hr = IMFMediaSession_GetSessionCapabilities(engine->session, &caps);
++    if (SUCCEEDED(hr) && !(caps & MFSESSIONCAP_SEEK)) hr = MF_E_INVALIDREQUEST;
++    if (SUCCEEDED(hr)) hr = media_engine_set_current_time(engine, 0.0);
++    TRACE("Loop restart %p, flags %#x, hr %#lx.\n", engine, engine->flags, hr);
++    if (FAILED(hr))
++    {
++        engine->error_code = MF_MEDIA_ENGINE_ERR_DECODE;
++        engine->extended_code = hr;
++        IMFMediaEngineNotify_EventNotify(engine->callback, MF_MEDIA_ENGINE_EVENT_ERROR,
++                engine->error_code, engine->extended_code);
++    }
++    return TRUE;
++}
++
+ static HRESULT WINAPI media_engine_session_events_Invoke(IMFAsyncCallback *iface, IMFAsyncResult *result)
+ {
+     struct media_engine *engine = impl_from_session_events_IMFAsyncCallback(iface);
+@@ -1010,6 +1045,11 @@
+         case MESessionEnded:
+ 
+             EnterCriticalSection(&engine->cs);
++            if ((engine->flags & FLAGS_ENGINE_SHUT_DOWN) || media_engine_handle_loop_end(engine))
++            {
++                LeaveCriticalSection(&engine->cs);
++                break;
++            }
+             media_engine_set_flag(engine, FLAGS_ENGINE_FIRST_FRAME, FALSE);
+             media_engine_set_flag(engine, FLAGS_ENGINE_IS_ENDED, TRUE);
+             engine->video_frame.pts = MINLONGLONG;

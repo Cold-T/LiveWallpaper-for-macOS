@@ -24,3 +24,5 @@
 #import "DisplayObjc.h"
 
 #endif /* LiveWallpaper_Bridging_Header_h */
+
+#import "playback/bundle/BundledRuntime.h"

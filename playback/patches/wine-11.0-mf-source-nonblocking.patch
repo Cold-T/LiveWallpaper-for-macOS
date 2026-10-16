@@ -1,0 +1,723 @@
+--- a/dlls/winegstreamer/gst_private.h
++++ b/dlls/winegstreamer/gst_private.h
+@@ -92,6 +92,8 @@
+ bool wg_parser_stream_copy_buffer(wg_parser_stream_t stream,
+         void *data, uint32_t offset, uint32_t size);
+ void wg_parser_stream_release_buffer(wg_parser_stream_t stream);
++enum wg_parser_read_status wg_parser_stream_try_read(wg_parser_t parser, wg_parser_stream_t stream,
++        UINT64 *epoch, struct wg_parser_buffer *buffer, void *data, UINT32 capacity);
+ void wg_parser_stream_notify_qos(wg_parser_stream_t stream,
+         bool underflow, double proportion, int64_t diff, uint64_t timestamp);
+ 
+--- a/dlls/winegstreamer/main.c
++++ b/dlls/winegstreamer/main.c
+@@ -326,6 +326,20 @@
+     TRACE("parser %#I64x, stream %#I64x, buffer %p.\n", parser, stream, buffer);
+ 
+     return !WINE_UNIX_CALL(unix_wg_parser_stream_get_buffer, &params);
++}
++
++enum wg_parser_read_status wg_parser_stream_try_read(wg_parser_t parser, wg_parser_stream_t stream,
++        UINT64 *epoch, struct wg_parser_buffer *buffer, void *data, UINT32 capacity)
++{
++    struct wg_parser_stream_try_read_params params =
++    {
++        .parser = parser, .stream = stream, .epoch = *epoch,
++        .buffer = buffer, .data = data, .capacity = capacity, .status = WG_PARSER_READ_ERROR,
++    };
++    if (WINE_UNIX_CALL(unix_wg_parser_stream_try_read, &params))
++        return WG_PARSER_READ_ERROR;
++    *epoch = params.epoch;
++    return params.status;
+ }
+ 
+ bool wg_parser_stream_copy_buffer(wg_parser_stream_t stream,
+--- a/dlls/winegstreamer/media_source.c
++++ b/dlls/winegstreamer/media_source.c
+@@ -119,6 +119,8 @@
+     return S_OK;
+ }
+ 
++struct source_async_command;
++
+ struct media_stream
+ {
+     IMFMediaStream IMFMediaStream_iface;
+@@ -130,9 +132,10 @@
+ 
+     wg_parser_stream_t wg_stream;
+ 
+-    IUnknown **token_queue;
+-    LONG token_queue_count;
+-    LONG token_queue_cap;
++    struct source_async_command *request_head, *request_tail;
++    BOOL pump_pending, retry_pending;
++    UINT64 retry_serial;
++    MFWORKITEM_KEY retry_key;
+ 
+     DWORD stream_id;
+     BOOL active;
+@@ -145,6 +148,8 @@
+     SOURCE_ASYNC_PAUSE,
+     SOURCE_ASYNC_STOP,
+     SOURCE_ASYNC_REQUEST_SAMPLE,
++    SOURCE_ASYNC_SAMPLE_PUMP,
++    SOURCE_ASYNC_SAMPLE_RETRY,
+ };
+ 
+ struct source_async_command
+@@ -152,6 +157,7 @@
+     IUnknown IUnknown_iface;
+     LONG refcount;
+     enum source_async_op op;
++    struct source_async_command *next;
+     union
+     {
+         struct
+@@ -164,6 +170,7 @@
+         {
+             struct media_stream *stream;
+             IUnknown *token;
++            UINT64 epoch, retry_serial;
+         } request_sample;
+     } u;
+ };
+@@ -177,6 +184,7 @@
+     IMFAsyncCallback async_commands_callback;
+     LONG ref;
+     DWORD async_commands_queue;
++    UINT64 sample_epoch;
+     IMFMediaEventQueue *event_queue;
+     IMFByteStream *byte_stream;
+ 
+@@ -204,6 +212,12 @@
+     bool read_thread_shutdown;
+ };
+ 
++static HRESULT schedule_sample_pump(struct media_stream *stream);
++static void cancel_sample_retry(struct media_stream *stream);
++static void invalidate_sample_work(struct media_source *source);
++static HRESULT source_sample_pump(struct media_source *source, struct media_stream *stream);
++static void source_sample_error(struct media_source *source, struct media_stream *stream, HRESULT hr);
++
+ static inline struct media_stream *impl_from_IMFMediaStream(IMFMediaStream *iface)
+ {
+     return CONTAINING_RECORD(iface, struct media_stream, IMFMediaStream_iface);
+@@ -271,10 +285,13 @@
+             IMFPresentationDescriptor_Release(command->u.start.descriptor);
+             PropVariantClear(&command->u.start.position);
+         }
+-        else if (command->op == SOURCE_ASYNC_REQUEST_SAMPLE)
++        else if (command->op == SOURCE_ASYNC_REQUEST_SAMPLE || command->op == SOURCE_ASYNC_SAMPLE_PUMP
++                || command->op == SOURCE_ASYNC_SAMPLE_RETRY)
+         {
+             if (command->u.request_sample.token)
+                 IUnknown_Release(command->u.request_sample.token);
++            if (command->u.request_sample.stream)
++                IMFMediaStream_Release(&command->u.request_sample.stream->IMFMediaStream_iface);
+         }
+         free(command);
+     }
+@@ -511,56 +528,106 @@
+     return hr;
+ }
+ 
+-static BOOL enqueue_token(struct media_stream *stream, IUnknown *token)
+-{
+-    if (stream->token_queue_count == stream->token_queue_cap)
+-    {
+-        IUnknown **buf;
+-        stream->token_queue_cap = stream->token_queue_cap * 2 + 1;
+-        buf = realloc(stream->token_queue, stream->token_queue_cap * sizeof(*buf));
+-        if (buf)
+-            stream->token_queue = buf;
+-        else
+-        {
+-            stream->token_queue_cap = stream->token_queue_count;
+-            return FALSE;
+-        }
+-    }
+-    stream->token_queue[stream->token_queue_count++] = token;
+-    return TRUE;
++/* Every FIFO node is an AddRef'd command, owning both token and stream. */
++static void enqueue_sample_request(struct media_stream *stream, struct source_async_command *command)
++{
++    IUnknown_AddRef(&command->IUnknown_iface);
++    command->next = NULL;
++    if (stream->request_tail) stream->request_tail->next = command;
++    else stream->request_head = command;
++    stream->request_tail = command;
+ }
+ 
+ static void flush_token_queue(struct media_stream *stream, BOOL send)
+ {
++    struct source_async_command *command;
++    if (send)
++    {
++        HRESULT hr = schedule_sample_pump(stream);
++        if (FAILED(hr)) source_sample_error(impl_from_IMFMediaSource(stream->media_source), stream, hr);
++        return;
++    }
++    cancel_sample_retry(stream);
++    while ((command = stream->request_head))
++    {
++        stream->request_head = command->next;
++        IUnknown_Release(&command->IUnknown_iface);
++    }
++    stream->request_tail = NULL;
++}
++
++static void source_sample_error(struct media_source *source, struct media_stream *stream, HRESULT hr)
++{
++    flush_token_queue(stream, FALSE);
++    IMFMediaEventQueue_QueueEventParamVar(source->event_queue, MEError, &GUID_NULL, hr, NULL);
++}
++
++static HRESULT create_stream_op(struct media_stream *stream, enum source_async_op kind,
++        struct source_async_command **out)
++{
+     struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
+-    LONG i;
+-
+-    for (i = 0; i < stream->token_queue_count; i++)
+-    {
+-        if (send)
+-        {
+-            IUnknown *op;
+-            HRESULT hr;
+-
+-            if (SUCCEEDED(hr = source_create_async_op(SOURCE_ASYNC_REQUEST_SAMPLE, &op)))
+-            {
+-                struct source_async_command *command = impl_from_async_command_IUnknown(op);
+-                command->u.request_sample.stream = stream;
+-                command->u.request_sample.token = stream->token_queue[i];
+-
+-                hr = MFPutWorkItem(source->async_commands_queue, &source->async_commands_callback, op);
+-                IUnknown_Release(op);
+-            }
+-            if (FAILED(hr))
+-                WARN("Could not enqueue sample request, hr %#lx\n", hr);
+-        }
+-        else if (stream->token_queue[i])
+-            IUnknown_Release(stream->token_queue[i]);
+-    }
+-    free(stream->token_queue);
+-    stream->token_queue = NULL;
+-    stream->token_queue_count = 0;
+-    stream->token_queue_cap = 0;
++    IUnknown *op;
++    HRESULT hr = source_create_async_op(kind, &op);
++    if (FAILED(hr)) return hr;
++    *out = impl_from_async_command_IUnknown(op);
++    (*out)->u.request_sample.stream = stream;
++    (*out)->u.request_sample.epoch = source->sample_epoch;
++    IMFMediaStream_AddRef(&stream->IMFMediaStream_iface);
++    return S_OK;
++}
++
++static void cancel_sample_retry(struct media_stream *stream)
++{
++    ++stream->retry_serial;
++    if (stream->retry_pending)
++    {
++        MFCancelWorkItem(stream->retry_key);
++        stream->retry_pending = FALSE;
++    }
++}
++
++static HRESULT schedule_sample_pump(struct media_stream *stream)
++{
++    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
++    struct source_async_command *command;
++    HRESULT hr;
++    if (source->state != SOURCE_RUNNING || !stream->active || !stream->request_head
++            || stream->pump_pending || stream->retry_pending) return S_OK;
++    if (FAILED(hr = create_stream_op(stream, SOURCE_ASYNC_SAMPLE_PUMP, &command))) return hr;
++    stream->pump_pending = TRUE;
++    hr = MFPutWorkItem(source->async_commands_queue, &source->async_commands_callback,
++            &command->IUnknown_iface);
++    if (FAILED(hr)) stream->pump_pending = FALSE;
++    IUnknown_Release(&command->IUnknown_iface);
++    return hr;
++}
++
++static HRESULT schedule_sample_retry(struct media_stream *stream)
++{
++    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
++    struct source_async_command *command;
++    HRESULT hr;
++    if (stream->retry_pending || source->state != SOURCE_RUNNING) return S_OK;
++    if (FAILED(hr = create_stream_op(stream, SOURCE_ASYNC_SAMPLE_RETRY, &command))) return hr;
++    command->u.request_sample.retry_serial = ++stream->retry_serial;
++    stream->retry_pending = TRUE;
++    /* Negative relative time is in milliseconds in MFScheduleWorkItem. */
++    hr = MFScheduleWorkItem(&source->async_commands_callback, &command->IUnknown_iface,
++            -1, &stream->retry_key);
++    if (FAILED(hr)) stream->retry_pending = FALSE;
++    IUnknown_Release(&command->IUnknown_iface);
++    return hr;
++}
++
++static void invalidate_sample_work(struct media_source *source)
++{
++    unsigned int i;
++    if (!++source->sample_epoch) ++source->sample_epoch;
++    for (i = 0; i < source->stream_count; ++i)
++    {
++        source->streams[i]->pump_pending = FALSE;
++        flush_token_queue(source->streams[i], FALSE);
++    }
+ }
+ 
+ static HRESULT media_stream_start(struct media_stream *stream, BOOL active, BOOL seeking, const PROPVARIANT *position)
+@@ -631,6 +698,8 @@
+         }
+     }
+ 
++    if (position->vt != VT_EMPTY) invalidate_sample_work(source);
++
+     for (i = 0; i < source->stream_count; i++)
+     {
+         struct media_stream *stream = source->streams[i];
+@@ -640,7 +709,10 @@
+             stream->eos = FALSE;
+ 
+         if (!(stream->active = !!descriptors[i]))
++        {
++            flush_token_queue(stream, FALSE);
+             wg_parser_stream_disable(stream->wg_stream);
++        }
+         else
+         {
+             if (FAILED(hr = media_stream_start(stream, was_active, seek_message, position)))
+@@ -674,9 +746,11 @@
+     if (source->state == SOURCE_SHUTDOWN)
+         return MF_E_SHUTDOWN;
+ 
++    source->state = SOURCE_PAUSED;
+     for (i = 0; i < source->stream_count; i++)
+     {
+         struct media_stream *stream = source->streams[i];
++        cancel_sample_retry(stream);
+         if (stream->active && FAILED(hr = IMFMediaEventQueue_QueueEventParamVar(stream->event_queue, MEStreamPaused,
+                     &GUID_NULL, S_OK, NULL)))
+             WARN("Failed to queue MEStreamPaused event, hr %#lx\n", hr);
+@@ -695,6 +769,9 @@
+ 
+     if (source->state == SOURCE_SHUTDOWN)
+         return MF_E_SHUTDOWN;
++
++    source->state = SOURCE_STOPPED;
++    invalidate_sample_work(source);
+ 
+     for (i = 0; i < source->stream_count; i++)
+     {
+@@ -712,53 +789,6 @@
+     return IMFMediaEventQueue_QueueEventParamVar(source->event_queue, MESourceStopped, &GUID_NULL, S_OK, NULL);
+ }
+ 
+-static HRESULT media_stream_send_sample(struct media_stream *stream, const struct wg_parser_buffer *wg_buffer, IUnknown *token)
+-{
+-    IMFSample *sample = NULL;
+-    IMFMediaBuffer *buffer;
+-    HRESULT hr;
+-    BYTE *data;
+-
+-    if (FAILED(hr = MFCreateMemoryBuffer(wg_buffer->size, &buffer)))
+-        return hr;
+-    if (FAILED(hr = IMFMediaBuffer_SetCurrentLength(buffer, wg_buffer->size)))
+-        goto out;
+-    if (FAILED(hr = IMFMediaBuffer_Lock(buffer, &data, NULL, NULL)))
+-        goto out;
+-
+-    if (!wg_parser_stream_copy_buffer(stream->wg_stream, data, 0, wg_buffer->size))
+-    {
+-        hr = S_FALSE;
+-        wg_parser_stream_release_buffer(stream->wg_stream);
+-        IMFMediaBuffer_Unlock(buffer);
+-        goto out;
+-    }
+-    wg_parser_stream_release_buffer(stream->wg_stream);
+-
+-    if (FAILED(hr = IMFMediaBuffer_Unlock(buffer)))
+-        goto out;
+-
+-    if (FAILED(hr = MFCreateSample(&sample)))
+-        goto out;
+-    if (FAILED(hr = IMFSample_AddBuffer(sample, buffer)))
+-        goto out;
+-    if (FAILED(hr = IMFSample_SetSampleTime(sample, wg_buffer->pts)))
+-        goto out;
+-    if (FAILED(hr = IMFSample_SetSampleDuration(sample, wg_buffer->duration)))
+-        goto out;
+-    if (token && FAILED(hr = IMFSample_SetUnknown(sample, &MFSampleExtension_Token, token)))
+-        goto out;
+-
+-    hr = IMFMediaEventQueue_QueueEventParamUnk(stream->event_queue, MEMediaSample,
+-            &GUID_NULL, S_OK, (IUnknown *)sample);
+-
+-out:
+-    if (sample)
+-        IMFSample_Release(sample);
+-    IMFMediaBuffer_Release(buffer);
+-    return hr;
+-}
+-
+ static HRESULT media_stream_send_eos(struct media_source *source, struct media_stream *stream)
+ {
+     PROPVARIANT empty = {.vt = VT_EMPTY};
+@@ -783,38 +813,60 @@
+     return S_OK;
+ }
+ 
+-static bool stream_get_buffer(struct media_stream *stream, struct wg_parser_buffer *buffer)
+-{
+-    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
+-    wg_parser_stream_t wg_stream = stream->wg_stream;
+-    wg_parser_t wg_parser = source->wg_parser;
+-    bool ret;
+-
+-    LeaveCriticalSection(&source->cs);
+-    ret = wg_parser_stream_get_buffer(wg_parser, wg_stream, buffer);
+-    EnterCriticalSection(&source->cs);
+-
+-    return ret;
+-}
+-
+-static HRESULT wait_on_sample(struct media_stream *stream, IUnknown *token)
+-{
+-    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
+-    struct wg_parser_buffer buffer;
+-
+-    TRACE("%p, %p\n", stream, token);
+-
+-    while (stream_get_buffer(stream, &buffer))
+-    {
+-        HRESULT hr = media_stream_send_sample(stream, &buffer, token);
+-        if (hr != S_FALSE)
+-            return hr;
+-    }
+-
+-    if (source->state == SOURCE_SHUTDOWN)
+-        return S_OK;
+-
+-    return media_stream_send_eos(source, stream);
++/* No Unix buffer loan crosses calls: preflight is advisory; actual read/copy/
++ * release is atomic in Unix and epoch-checked against asynchronous Gst flush. */
++static HRESULT source_sample_pump(struct media_source *source, struct media_stream *stream)
++{
++    struct source_async_command *request = stream->request_head;
++    struct wg_parser_buffer meta;
++    enum wg_parser_read_status status;
++    IMFMediaBuffer *buffer = NULL;
++    IMFSample *sample = NULL;
++    UINT64 epoch = 0;
++    BYTE *data;
++    HRESULT hr = S_OK;
++
++    if (source->state != SOURCE_RUNNING || !stream->active || !request) return S_OK;
++    status = wg_parser_stream_try_read(source->wg_parser, stream->wg_stream, &epoch, &meta, NULL, 0);
++    if (status == WG_PARSER_READ_EOS)
++    {
++        hr = media_stream_send_eos(source, stream);
++        flush_token_queue(stream, FALSE);
++        return hr;
++    }
++    if (status == WG_PARSER_READ_WOULD_BLOCK || status == WG_PARSER_READ_CANCELLED)
++        return schedule_sample_retry(stream);
++    if (status != WG_PARSER_READ_NEED_BUFFER) return E_UNEXPECTED;
++    if (FAILED(hr = MFCreateMemoryBuffer(meta.size, &buffer))) return hr;
++    if (FAILED(hr = IMFMediaBuffer_Lock(buffer, &data, NULL, NULL))) goto out;
++    status = wg_parser_stream_try_read(source->wg_parser, stream->wg_stream, &epoch, &meta, data, meta.size);
++    IMFMediaBuffer_Unlock(buffer);
++    if (status != WG_PARSER_READ_READY)
++    {
++        if (status == WG_PARSER_READ_ERROR) hr = E_UNEXPECTED;
++        else hr = schedule_sample_retry(stream); /* never turn cancellation into EOS */
++        goto out;
++    }
++    if (FAILED(hr = IMFMediaBuffer_SetCurrentLength(buffer, meta.size))) goto out;
++    if (FAILED(hr = MFCreateSample(&sample))) goto out;
++    if (FAILED(hr = IMFSample_AddBuffer(sample, buffer))) goto out;
++    if (FAILED(hr = IMFSample_SetSampleTime(sample, meta.pts))) goto out;
++    if (FAILED(hr = IMFSample_SetSampleDuration(sample, meta.duration))) goto out;
++    if (request->u.request_sample.token && FAILED(hr = IMFSample_SetUnknown(sample,
++            &MFSampleExtension_Token, request->u.request_sample.token))) goto out;
++    hr = IMFMediaEventQueue_QueueEventParamUnk(stream->event_queue, MEMediaSample,
++            &GUID_NULL, S_OK, (IUnknown *)sample);
++    if (SUCCEEDED(hr))
++    {
++        stream->request_head = request->next;
++        if (!stream->request_head) stream->request_tail = NULL;
++        IUnknown_Release(&request->IUnknown_iface);
++        hr = schedule_sample_pump(stream);
++    }
++ out:
++    if (sample) IMFSample_Release(sample);
++    if (buffer) IMFMediaBuffer_Release(buffer);
++    return hr;
+ }
+ 
+ static HRESULT WINAPI source_async_commands_Invoke(IMFAsyncCallback *iface, IMFAsyncResult *result)
+@@ -851,12 +903,38 @@
+                 WARN("Failed to stop source %p, hr %#lx\n", source, hr);
+             break;
+         case SOURCE_ASYNC_REQUEST_SAMPLE:
+-            if (source->state == SOURCE_PAUSED)
+-                enqueue_token(command->u.request_sample.stream, command->u.request_sample.token);
+-            else if (source->state == SOURCE_RUNNING)
++            if (source->state == SOURCE_PAUSED || source->state == SOURCE_RUNNING)
+             {
+-                if (FAILED(hr = wait_on_sample(command->u.request_sample.stream, command->u.request_sample.token)))
+-                    WARN("Failed to request sample, hr %#lx\n", hr);
++                struct media_stream *stream = command->u.request_sample.stream;
++                if (stream->active && !stream->eos)
++                {
++                    enqueue_sample_request(stream, command);
++                    if (FAILED(hr = schedule_sample_pump(stream)))
++                        source_sample_error(source, stream, hr);
++                }
++            }
++            break;
++        case SOURCE_ASYNC_SAMPLE_PUMP:
++            if (command->u.request_sample.epoch == source->sample_epoch && source->state != SOURCE_SHUTDOWN)
++            {
++                struct media_stream *stream = command->u.request_sample.stream;
++                stream->pump_pending = FALSE;
++                if (FAILED(hr = source_sample_pump(source, stream)))
++                {
++                    source_sample_error(source, stream, hr);
++                }
++            }
++            break;
++        case SOURCE_ASYNC_SAMPLE_RETRY:
++            if (command->u.request_sample.epoch == source->sample_epoch && source->state != SOURCE_SHUTDOWN)
++            {
++                struct media_stream *stream = command->u.request_sample.stream;
++                if (command->u.request_sample.retry_serial == stream->retry_serial)
++                {
++                    stream->retry_pending = FALSE;
++                    if (FAILED(hr = schedule_sample_pump(stream)))
++                        source_sample_error(source, stream, hr);
++                }
+             }
+             break;
+     }
+@@ -1093,6 +1171,7 @@
+     {
+         struct source_async_command *command = impl_from_async_command_IUnknown(op);
+         command->u.request_sample.stream = stream;
++        IMFMediaStream_AddRef(&stream->IMFMediaStream_iface);
+         if (token)
+             IUnknown_AddRef(token);
+         command->u.request_sample.token = token;
+@@ -1575,6 +1654,7 @@
+     }
+ 
+     source->state = SOURCE_SHUTDOWN;
++    invalidate_sample_work(source);
+ 
+     wg_parser_disconnect(source->wg_parser);
+ 
+@@ -1680,6 +1760,7 @@
+     object->read_thread = CreateThread(NULL, 0, read_thread, object, 0, NULL);
+ 
+     object->state = SOURCE_OPENING;
++    object->sample_epoch = 1;
+ 
+     if (FAILED(hr = wg_parser_connect(parser, object->file_size, context->url)))
+         goto fail;
+--- a/dlls/winegstreamer/unixlib.h
++++ b/dlls/winegstreamer/unixlib.h
+@@ -284,6 +284,27 @@
+     struct wg_parser_buffer *buffer;
+ };
+ 
++/* Appended ABI: preflight does not lend a GstBuffer across the boundary. */
++enum wg_parser_read_status
++{
++    WG_PARSER_READ_ERROR,
++    WG_PARSER_READ_READY,
++    WG_PARSER_READ_WOULD_BLOCK,
++    WG_PARSER_READ_NEED_BUFFER,
++    WG_PARSER_READ_EOS,
++    WG_PARSER_READ_CANCELLED,
++};
++struct wg_parser_stream_try_read_params
++{
++    wg_parser_t parser;
++    wg_parser_stream_t stream;
++    UINT64 epoch; /* zero for advisory preflight; nonzero guards segment identity */
++    struct wg_parser_buffer *buffer;
++    void *data;
++    UINT32 capacity;
++    UINT32 status;
++};
++
+ struct wg_parser_stream_copy_buffer_params
+ {
+     wg_parser_stream_t stream;
+@@ -467,6 +488,8 @@
+     unix_wg_muxer_read_data,
+     unix_wg_muxer_finalize,
+ 
++    unix_wg_parser_stream_try_read, /* append: preserve every existing slot */
++
+     unix_wg_funcs_count,
+ };
+ 
+--- a/dlls/winegstreamer/wg_parser.c
++++ b/dlls/winegstreamer/wg_parser.c
+@@ -112,6 +112,7 @@
+     GstCaps *desired_caps;
+ 
+     pthread_cond_t event_cond, event_empty_cond;
++    UINT64 read_epoch; /* protected by parser->mutex; invalidates advisory preflight */
+     GstBuffer *buffer;
+     GstMapInfo map_info;
+ 
+@@ -134,9 +135,17 @@
+ static bool caps_is_compressed(GstCaps *caps)
+ {
+     struct wg_format format;
++    const char *name;
+ 
+     if (!caps)
+         return false;
++
++    /* Raw pad capabilities can contain format lists, size ranges and memory
++     * features. Classifying them does not require a fixed GstVideoInfo. */
++    name = gst_structure_get_name(gst_caps_get_structure(caps, 0));
++    if (!strcmp(name, "video/x-raw") || !strcmp(name, "audio/x-raw"))
++        return false;
++
+     wg_format_from_caps(&format, caps);
+ 
+     return format.major_type != WG_MAJOR_TYPE_UNKNOWN
+@@ -286,6 +295,7 @@
+ 
+     pthread_mutex_lock(&parser->mutex);
+     stream->enabled = false;
++    if (!++stream->read_epoch) ++stream->read_epoch;
+     if (stream->desired_caps)
+     {
+         gst_caps_unref(stream->desired_caps);
+@@ -381,6 +391,58 @@
+     return S_OK;
+ }
+ 
++/* Never waits for data. Both copying and releasing occur in one parser lock,
++ * so a Gst FLUSH_START cannot replace the buffer between those operations.
++ * Preflight metadata is advisory only, guarded by epoch on the actual copy. */
++static NTSTATUS wg_parser_stream_try_read(void *args)
++{
++    struct wg_parser_stream_try_read_params *params = args;
++    struct wg_parser_stream *stream = get_stream(params->stream);
++    struct wg_parser *parser = get_parser(params->parser);
++    struct wg_parser_buffer *meta = params->buffer;
++    GstBuffer *buffer;
++    UINT64 expected = params->epoch;
++
++    params->status = WG_PARSER_READ_ERROR;
++    if (!stream || !parser || stream->parser != parser || !meta) return E_INVALIDARG;
++    pthread_mutex_lock(&parser->mutex);
++    params->epoch = stream->read_epoch;
++    if ((expected && expected != stream->read_epoch) || !stream->enabled || stream->flushing)
++        params->status = WG_PARSER_READ_CANCELLED;
++    else if (!(buffer = stream->buffer))
++        params->status = parser->error ? WG_PARSER_READ_ERROR
++                : stream->eos ? WG_PARSER_READ_EOS : WG_PARSER_READ_WOULD_BLOCK;
++    else
++    {
++        memset(meta, 0, sizeof(*meta));
++        if ((meta->has_pts = GST_BUFFER_PTS_IS_VALID(buffer))) meta->pts = GST_BUFFER_PTS(buffer) / 100;
++        if ((meta->has_duration = GST_BUFFER_DURATION_IS_VALID(buffer))) meta->duration = GST_BUFFER_DURATION(buffer) / 100;
++        meta->discontinuity = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DISCONT);
++        meta->preroll = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_LIVE);
++        meta->delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
++        meta->stream = stream->number;
++        if (stream->map_info.size > UINT32_MAX)
++            params->status = WG_PARSER_READ_ERROR;
++        else
++        {
++            meta->size = stream->map_info.size;
++            if (!params->data || params->capacity < meta->size)
++                params->status = WG_PARSER_READ_NEED_BUFFER;
++            else
++            {
++                memcpy(params->data, stream->map_info.data, meta->size);
++                gst_buffer_unmap(buffer, &stream->map_info);
++                gst_buffer_unref(buffer);
++                stream->buffer = NULL;
++                params->status = WG_PARSER_READ_READY;
++                pthread_cond_signal(&stream->event_empty_cond);
++            }
++        }
++    }
++    pthread_mutex_unlock(&parser->mutex);
++    return S_OK;
++}
++
+ static NTSTATUS wg_parser_stream_copy_buffer(void *args)
+ {
+     const struct wg_parser_stream_copy_buffer_params *params = args;
+@@ -652,6 +714,7 @@
+             pthread_mutex_lock(&parser->mutex);
+ 
+             stream->flushing = true;
++            if (!++stream->read_epoch) ++stream->read_epoch;
+             pthread_cond_signal(&stream->event_empty_cond);
+ 
+             if (stream->buffer)
+@@ -858,6 +921,7 @@
+ 
+     stream->parser = parser;
+     stream->number = parser->stream_count;
++    stream->read_epoch = 1;
+     stream->no_more_pads = true;
+     pthread_cond_init(&stream->event_cond, NULL);
+     pthread_cond_init(&stream->event_empty_cond, NULL);
+@@ -1949,6 +2013,7 @@
+     X(wg_muxer_push_sample),
+     X(wg_muxer_read_data),
+     X(wg_muxer_finalize),
++    X(wg_parser_stream_try_read),
+ };
+ 
+ C_ASSERT(ARRAYSIZE(__wine_unix_call_funcs) == unix_wg_funcs_count);
+@@ -2296,6 +2361,27 @@
+     return ret;
+ }
+ 
++static NTSTATUS wow64_wg_parser_stream_try_read(void *args)
++{
++    struct params32
++    {
++        wg_parser_t parser;
++        wg_parser_stream_t stream;
++        UINT64 epoch;
++        UINT32 buffer, data, capacity, status;
++    } *p = args;
++    struct wg_parser_stream_try_read_params params =
++    {
++        .parser = p->parser, .stream = p->stream, .epoch = p->epoch,
++        .buffer = ULongToPtr(p->buffer), .data = ULongToPtr(p->data),
++        .capacity = p->capacity, .status = p->status,
++    };
++    NTSTATUS ret = wg_parser_stream_try_read(&params);
++    p->epoch = params.epoch;
++    p->status = params.status;
++    return ret;
++}
++
+ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
+ {
+ #define X64(name) [unix_ ## name] = wow64_ ## name
+@@ -2346,6 +2432,7 @@
+     X64(wg_muxer_push_sample),
+     X64(wg_muxer_read_data),
+     X(wg_muxer_finalize),
++    X64(wg_parser_stream_try_read),
+ };
+ 
+ C_ASSERT(ARRAYSIZE(__wine_unix_call_wow64_funcs) == unix_wg_funcs_count);

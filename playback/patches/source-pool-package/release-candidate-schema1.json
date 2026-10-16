@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "name": "Wine11 source FIFO + CPU output cache + source pool + loop v3 + format-aware GPU color transfer",
+  "status": "v18: 3470764447 muted 70-second desktop regression and visual color reference passed; broader parity remains unverified",
+  "modules": {
+    "winegstreamer.dll": "df9ce17519d944f68001e47ea4a16560b4f29e916bc9d13b0d712561c805a5ad",
+    "winegstreamer.so": "d4e6e00c874ceb0f89ccabd3691c508499c443daa23979ef976a0a98e0e9d84a",
+    "mfmediaengine.dll": "7489515c76741d614190443245c497601af5b82c87d92285ead178a189e076e7"
+  },
+  "public_source": {
+    "wine_tag": "wine-11.0",
+    "commit": "db11d0fe6a169c457e23d007e20404643d067aa8",
+    "unix_call_count": 38,
+    "appended_try_read_slot": 37
+  },
+  "scope": "Full original engine; no direct staging, output-stride repair or playback-rate change. Source/output PE retains instrumentation but product WINEDEBUG suppresses trace output.",
+  "reproduction_note": "LW_MF_RELEASE_LOOP=1 build.sh applies complete combined patch then the audited release-mediaengine delta; source PE still retains timing instrumentation. Binary timestamps/path hashes may differ. Apply color-format-transfer.patch after the optional release delta; source copies include color fix."
+}

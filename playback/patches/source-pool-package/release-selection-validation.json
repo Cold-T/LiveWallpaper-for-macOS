@@ -1,0 +1,21 @@
+{
+  "schema1_preparer_verification": true,
+  "receipt_sha256": "f53a0d8c186e553cc1de1f7979e6d7bfb7907404545273e0bb595a18d50a8e54",
+  "artifacts": {
+    "winegstreamer.dll": {
+      "path": "/private/tmp/lw-wine-source-pool-build/winegstreamer-mf-candidate.dll",
+      "sha256": "df9ce17519d944f68001e47ea4a16560b4f29e916bc9d13b0d712561c805a5ad"
+    },
+    "winegstreamer.so": {
+      "path": "/private/tmp/lw-wine-source-pool-build/winegstreamer-mf-candidate.so",
+      "sha256": "d4e6e00c874ceb0f89ccabd3691c508499c443daa23979ef976a0a98e0e9d84a"
+    },
+    "mfmediaengine.dll": {
+      "path": "/private/tmp/lw-wine-loop-v3-build/mfmediaengine-loop-v3-candidate.dll",
+      "sha256": "2494d7755159acf4a25ed59fd8175a62e4c94b4123594a57e65f5ab61a8c3560"
+    }
+  },
+  "runtime_unchanged": true,
+  "wine_executed": false,
+  "exact_non_timing_mediaengine_triplet_real_test": "pending"
+}

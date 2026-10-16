@@ -15,7 +15,7 @@
   <string>uk.coldt.LiveWallpaper</string>
 
   <key>CFBundleName</key>
-  <string>LiveWallpaper</string>
+  <string>Livewallpaper for macOS</string>
 
   <key>NSHumanReadableCopyright</key>
   <string>Copyright (C) 2025 Bios thusvill; Copyright (C) 2026 Cold-T. GPL-3.0-or-later.</string>
@@ -24,10 +24,10 @@
   <string>APPL</string>
 
 <key>CFBundleShortVersionString</key>
-<string>1.0.2</string>
+<string>2.0.0</string>
 
 <key>CFBundleVersion</key>
-<string>3</string>
+<string>200</string>
   <key>LSUIElement</key>
   <true/>
 

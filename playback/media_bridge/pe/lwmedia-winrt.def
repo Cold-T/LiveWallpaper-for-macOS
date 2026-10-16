@@ -1,0 +1,4 @@
+LIBRARY lwmedia-winrt
+EXPORTS
+    DllGetActivationFactory
+    DllCanUnloadNow

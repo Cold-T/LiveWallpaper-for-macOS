@@ -1,0 +1,106 @@
+--- a/dlls/mfmediaengine/main.c
++++ b/dlls/mfmediaengine/main.c
+@@ -39,6 +39,7 @@
+ #include "wine/debug.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(mfplat);
++WINE_DECLARE_DEBUG_CHANNEL(mfloop);
+ 
+ static BOOL mf_array_reserve(void **elements, size_t *capacity, size_t count, size_t size)
+ {
+@@ -923,6 +924,43 @@
+ 
+ static HRESULT media_engine_set_current_time(struct media_engine *engine, double seektime);
+ 
++/* The caller holds engine->cs. A looping presentation must not emit ENDED:
++ * clients may permanently stop their tick worker on that notification. */
++static BOOL media_engine_handle_loop_end(struct media_engine *engine)
++{
++    DWORD caps;
++    HRESULT hr;
++
++    if (!(engine->flags & FLAGS_ENGINE_LOOP)) return FALSE;
++    /* An older terminal event must not replace an in-flight seek target. */
++    if (engine->flags & (FLAGS_ENGINE_SHUT_DOWN | FLAGS_ENGINE_SOURCE_PENDING | FLAGS_ENGINE_SEEKING))
++        return TRUE;
++
++    media_engine_set_flag(engine, FLAGS_ENGINE_IS_ENDED, FALSE);
++    if (engine->flags & FLAGS_ENGINE_PAUSED)
++    {
++        /* Do not restart behind a concurrent Pause. Play uses this position. */
++        engine->presentation.start_position.vt = VT_I8;
++        engine->presentation.start_position.hVal.QuadPart = 0;
++        return TRUE;
++    }
++
++    /* set_current_time uses session Start, tracks SEEKING/next_seek, and emits
++     * the existing seek notifications; never start a second clock here. */
++    hr = IMFMediaSession_GetSessionCapabilities(engine->session, &caps);
++    if (SUCCEEDED(hr) && !(caps & MFSESSIONCAP_SEEK)) hr = MF_E_INVALIDREQUEST;
++    if (SUCCEEDED(hr)) hr = media_engine_set_current_time(engine, 0.0);
++    TRACE_(mfloop)("Loop restart %p, flags %#x, hr %#lx.\n", engine, engine->flags, hr);
++    if (FAILED(hr))
++    {
++        engine->error_code = MF_MEDIA_ENGINE_ERR_DECODE;
++        engine->extended_code = hr;
++        IMFMediaEngineNotify_EventNotify(engine->callback, MF_MEDIA_ENGINE_EVENT_ERROR,
++                engine->error_code, engine->extended_code);
++    }
++    return TRUE;
++}
++
+ static HRESULT WINAPI media_engine_session_events_Invoke(IMFAsyncCallback *iface, IMFAsyncResult *result)
+ {
+     struct media_engine *engine = impl_from_session_events_IMFAsyncCallback(iface);
+@@ -1010,6 +1048,11 @@
+         case MESessionEnded:
+ 
+             EnterCriticalSection(&engine->cs);
++            if ((engine->flags & FLAGS_ENGINE_SHUT_DOWN) || media_engine_handle_loop_end(engine))
++            {
++                LeaveCriticalSection(&engine->cs);
++                break;
++            }
+             media_engine_set_flag(engine, FLAGS_ENGINE_FIRST_FRAME, FALSE);
+             media_engine_set_flag(engine, FLAGS_ENGINE_IS_ENDED, TRUE);
+             engine->video_frame.pts = MINLONGLONG;
+--- a/dlls/mfmediaengine/video_frame_sink.c
++++ b/dlls/mfmediaengine/video_frame_sink.c
+@@ -35,6 +35,7 @@
+ #include "wine/list.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(mfplat);
++WINE_DECLARE_DEBUG_CHANNEL(mfloop);
+ 
+ enum sink_state
+ {
+@@ -1012,6 +1013,19 @@
+                 video_frame_sink_set_flag(sink, FLAGS_FIRST_FRAME, FALSE);
+             }
+ 
++            /* An explicit position starts a new segment. A request issued at
++             * the previous EOF cannot be satisfied; do not let it or EOS block
++             * the first sample. Current-position Pause/Restart retains both. */
++            if (state == SINK_STATE_RUNNING && offset != PRESENTATION_CURRENT_POSITION)
++            {
++                TRACE_(mfloop)("New segment %p, offset %s, old state %u, eos %u, pending %u.\n",
++                        sink, debugstr_time(offset), sink->state, sink->eos, sink->sample_request_pending);
++                video_frame_sink_sample_queue_flush(sink);
++                video_frame_sink_set_flag(sink, FLAGS_FIRST_FRAME, FALSE);
++                sink->eos = FALSE;
++                sink->sample_request_pending = FALSE;
++            }
++
+             if (state == SINK_STATE_RUNNING && (sink->state == SINK_STATE_STOPPED || sink->state == SINK_STATE_PAUSED ||
+                     (sink->state == SINK_STATE_RUNNING && offset != PRESENTATION_CURRENT_POSITION)))
+                 video_frame_sink_stream_request_sample(sink);
+@@ -1303,7 +1317,9 @@
+ 
+ void video_frame_sink_notify_end_of_presentation_segment(struct video_frame_sink *sink)
+ {
++    EnterCriticalSection(&sink->cs);
+     sink->eos = TRUE;
++    LeaveCriticalSection(&sink->cs);
+ }
+ 
+ ULONG video_frame_sink_release(struct video_frame_sink *sink)

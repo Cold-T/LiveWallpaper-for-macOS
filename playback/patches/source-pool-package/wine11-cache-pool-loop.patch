@@ -1,0 +1,1642 @@
+--- a/dlls/mfmediaengine/main.c
++++ b/dlls/mfmediaengine/main.c
+@@ -39,6 +39,7 @@
+ #include "wine/debug.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(mfplat);
++WINE_DECLARE_DEBUG_CHANNEL(mfloop);
+ 
+ static BOOL mf_array_reserve(void **elements, size_t *capacity, size_t count, size_t size)
+ {
+@@ -204,6 +205,7 @@
+             } cb;
+         } d3d11;
+     } video_frame;
++    struct { ULONGLONG calls, ready, first_wall, last_wall, first_clock_wall; LONGLONG first_clock, last_clock, last_pts; BOOL clock_valid; } timing;
+     CRITICAL_SECTION cs;
+ };
+ 
+@@ -923,6 +925,58 @@
+ 
+ static HRESULT media_engine_set_current_time(struct media_engine *engine, double seektime);
+ 
++/* The caller holds engine->cs. A looping presentation must not emit ENDED:
++ * clients may permanently stop their tick worker on that notification. */
++static BOOL media_engine_handle_loop_end(struct media_engine *engine)
++{
++    DWORD caps;
++    HRESULT hr;
++
++    if (!(engine->flags & FLAGS_ENGINE_LOOP)) return FALSE;
++    /* An older terminal event must not replace an in-flight seek target. */
++    if (engine->flags & (FLAGS_ENGINE_SHUT_DOWN | FLAGS_ENGINE_SOURCE_PENDING | FLAGS_ENGINE_SEEKING))
++        return TRUE;
++
++    {
++        struct video_sink_timing samples;
++        LONGLONG clock = 0, system = 0;
++        ULONGLONG wall = GetTickCount64();
++        HRESULT clock_hr = engine->clock ? IMFPresentationClock_GetCorrelatedTime(engine->clock, 0, &clock, &system) : E_FAIL;
++        video_frame_sink_timing_snapshot(engine->presentation.frame_sink, &samples);
++        TRACE_(mfloop)("Timing engine %p wall_ms %s tick_span_ms %s tick_calls %s tick_ready %s first_clock %s first_clock_wall %s clock_valid %u last_tick_clock %s last_pts %s eos_clock %s system %s clock_hr %#lx rate %.6f samples %s full %s first_sample_wall %s last_sample_wall %s first_sample_pts %s last_sample_pts %s\n",
++            engine, wine_dbgstr_longlong(wall), wine_dbgstr_longlong(engine->timing.calls ? wall - engine->timing.first_wall : 0),
++            wine_dbgstr_longlong(engine->timing.calls), wine_dbgstr_longlong(engine->timing.ready),
++            wine_dbgstr_longlong(engine->timing.first_clock), wine_dbgstr_longlong(engine->timing.first_clock_wall), engine->timing.clock_valid, wine_dbgstr_longlong(engine->timing.last_clock), wine_dbgstr_longlong(engine->timing.last_pts),
++            wine_dbgstr_longlong(clock), wine_dbgstr_longlong(system), clock_hr, engine->playback_rate,
++            wine_dbgstr_longlong(samples.samples), wine_dbgstr_longlong(samples.full), wine_dbgstr_longlong(samples.first_wall),
++            wine_dbgstr_longlong(samples.last_wall), wine_dbgstr_longlong(samples.first_pts), wine_dbgstr_longlong(samples.last_pts));
++        memset(&engine->timing, 0, sizeof(engine->timing));
++    }
++    media_engine_set_flag(engine, FLAGS_ENGINE_IS_ENDED, FALSE);
++    if (engine->flags & FLAGS_ENGINE_PAUSED)
++    {
++        /* Do not restart behind a concurrent Pause. Play uses this position. */
++        engine->presentation.start_position.vt = VT_I8;
++        engine->presentation.start_position.hVal.QuadPart = 0;
++        return TRUE;
++    }
++
++    /* set_current_time uses session Start, tracks SEEKING/next_seek, and emits
++     * the existing seek notifications; never start a second clock here. */
++    hr = IMFMediaSession_GetSessionCapabilities(engine->session, &caps);
++    if (SUCCEEDED(hr) && !(caps & MFSESSIONCAP_SEEK)) hr = MF_E_INVALIDREQUEST;
++    if (SUCCEEDED(hr)) hr = media_engine_set_current_time(engine, 0.0);
++    TRACE_(mfloop)("Loop restart %p, flags %#x, hr %#lx.\n", engine, engine->flags, hr);
++    if (FAILED(hr))
++    {
++        engine->error_code = MF_MEDIA_ENGINE_ERR_DECODE;
++        engine->extended_code = hr;
++        IMFMediaEngineNotify_EventNotify(engine->callback, MF_MEDIA_ENGINE_EVENT_ERROR,
++                engine->error_code, engine->extended_code);
++    }
++    return TRUE;
++}
++
+ static HRESULT WINAPI media_engine_session_events_Invoke(IMFAsyncCallback *iface, IMFAsyncResult *result)
+ {
+     struct media_engine *engine = impl_from_session_events_IMFAsyncCallback(iface);
+@@ -1010,6 +1064,11 @@
+         case MESessionEnded:
+ 
+             EnterCriticalSection(&engine->cs);
++            if ((engine->flags & FLAGS_ENGINE_SHUT_DOWN) || media_engine_handle_loop_end(engine))
++            {
++                LeaveCriticalSection(&engine->cs);
++                break;
++            }
+             media_engine_set_flag(engine, FLAGS_ENGINE_FIRST_FRAME, FALSE);
+             media_engine_set_flag(engine, FLAGS_ENGINE_IS_ENDED, TRUE);
+             engine->video_frame.pts = MINLONGLONG;
+@@ -2885,8 +2944,20 @@
+     else
+     {
+         MFTIME clocktime;
+-        IMFPresentationClock_GetTime(engine->clock, &clocktime);
++        HRESULT clock_hr;
++        ULONGLONG wall = GetTickCount64();
++        if (!engine->timing.calls) engine->timing.first_wall = wall;
++        ++engine->timing.calls;
++        engine->timing.last_wall = wall;
++        clock_hr = IMFPresentationClock_GetTime(engine->clock, &clocktime);
++        /* Match the original call and result path; collect only valid clock values. */
++        if (SUCCEEDED(clock_hr) && !(engine->flags & FLAGS_ENGINE_SEEKING))
++        {
++            if (!engine->timing.clock_valid) { engine->timing.first_clock = clocktime; engine->timing.first_clock_wall = wall; engine->timing.clock_valid = TRUE; }
++            engine->timing.last_clock = clocktime;
++        }
+         hr = video_frame_sink_get_pts(engine->presentation.frame_sink, clocktime, pts);
++        if (hr == S_OK) { ++engine->timing.ready; engine->timing.last_pts = *pts; }
+     }
+ 
+     LeaveCriticalSection(&engine->cs);
+--- a/dlls/mfmediaengine/mediaengine_private.h
++++ b/dlls/mfmediaengine/mediaengine_private.h
+@@ -27,3 +27,7 @@
+ int video_frame_sink_get_sample(struct video_frame_sink *sink, IMFSample **sample);
+ HRESULT video_frame_sink_get_pts(struct video_frame_sink *sink, MFTIME clocktime, LONGLONG *pts);
+ void video_frame_sink_notify_end_of_presentation_segment(struct video_frame_sink *sink);
++
++/* Diagnostic snapshot only: all fields protected by the existing sink cs. */
++struct video_sink_timing { ULONGLONG samples, full, first_wall, last_wall; LONGLONG first_pts, last_pts; };
++void video_frame_sink_timing_snapshot(struct video_frame_sink *, struct video_sink_timing *);
+--- a/dlls/mfmediaengine/video_frame_sink.c
++++ b/dlls/mfmediaengine/video_frame_sink.c
+@@ -35,6 +35,7 @@
+ #include "wine/list.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(mfplat);
++WINE_DECLARE_DEBUG_CHANNEL(mfloop);
+ 
+ enum sink_state
+ {
+@@ -102,6 +103,7 @@
+     struct sample_queue queue;
+     bool sample_request_pending;
+     bool eos;
++    struct video_sink_timing timing;
+     CRITICAL_SECTION cs;
+ };
+ 
+@@ -413,6 +415,11 @@
+ 
+         if (SUCCEEDED(hr))
+         {
++            ULONGLONG wall = GetTickCount64();
++            if (!sink->timing.samples) { sink->timing.first_wall = wall; sink->timing.first_pts = sampletime; }
++            ++sink->timing.samples;
++            sink->timing.last_wall = wall;
++            sink->timing.last_pts = sampletime;
+             if (!(sink->flags & FLAGS_FIRST_FRAME))
+             {
+                 video_frame_sink_notify(sink, MF_MEDIA_ENGINE_EVENT_FIRSTFRAMEREADY);
+@@ -425,6 +432,7 @@
+ 
+             if (sink->queue.used != ARRAY_SIZE(sink->queue.samples))
+                 video_frame_sink_stream_request_sample(sink);
++            else ++sink->timing.full;
+         }
+     }
+ 
+@@ -1012,6 +1020,19 @@
+                 video_frame_sink_set_flag(sink, FLAGS_FIRST_FRAME, FALSE);
+             }
+ 
++            /* An explicit position starts a new segment. A request issued at
++             * the previous EOF cannot be satisfied; do not let it or EOS block
++             * the first sample. Current-position Pause/Restart retains both. */
++            if (state == SINK_STATE_RUNNING && offset != PRESENTATION_CURRENT_POSITION)
++            {
++                TRACE_(mfloop)("New segment %p, offset %s, old state %u, eos %u, pending %u.\n",
++                        sink, debugstr_time(offset), sink->state, sink->eos, sink->sample_request_pending);
++                video_frame_sink_sample_queue_flush(sink);
++                video_frame_sink_set_flag(sink, FLAGS_FIRST_FRAME, FALSE);
++                sink->eos = FALSE;
++                sink->sample_request_pending = FALSE;
++            }
++
+             if (state == SINK_STATE_RUNNING && (sink->state == SINK_STATE_STOPPED || sink->state == SINK_STATE_PAUSED ||
+                     (sink->state == SINK_STATE_RUNNING && offset != PRESENTATION_CURRENT_POSITION)))
+                 video_frame_sink_stream_request_sample(sink);
+@@ -1303,10 +1324,22 @@
+ 
+ void video_frame_sink_notify_end_of_presentation_segment(struct video_frame_sink *sink)
+ {
++    EnterCriticalSection(&sink->cs);
+     sink->eos = TRUE;
++    LeaveCriticalSection(&sink->cs);
+ }
+ 
+ ULONG video_frame_sink_release(struct video_frame_sink *sink)
+ {
+     return video_frame_sink_Release(&sink->IMFMediaSink_iface);
+ }
++
++void video_frame_sink_timing_snapshot(struct video_frame_sink *sink, struct video_sink_timing *out)
++{
++    memset(out, 0, sizeof(*out));
++    if (!sink) return;
++    EnterCriticalSection(&sink->cs);
++    *out = sink->timing;
++    memset(&sink->timing, 0, sizeof(sink->timing));
++    LeaveCriticalSection(&sink->cs);
++}
+--- a/dlls/winegstreamer/gst_private.h
++++ b/dlls/winegstreamer/gst_private.h
+@@ -92,6 +92,8 @@
+ bool wg_parser_stream_copy_buffer(wg_parser_stream_t stream,
+         void *data, uint32_t offset, uint32_t size);
+ void wg_parser_stream_release_buffer(wg_parser_stream_t stream);
++enum wg_parser_read_status wg_parser_stream_try_read(wg_parser_t parser, wg_parser_stream_t stream,
++        UINT64 *epoch, struct wg_parser_buffer *buffer, void *data, UINT32 capacity);
+ void wg_parser_stream_notify_qos(wg_parser_stream_t stream,
+         bool underflow, double proportion, int64_t diff, uint64_t timestamp);
+ 
+--- a/dlls/winegstreamer/main.c
++++ b/dlls/winegstreamer/main.c
+@@ -326,6 +326,20 @@
+     TRACE("parser %#I64x, stream %#I64x, buffer %p.\n", parser, stream, buffer);
+ 
+     return !WINE_UNIX_CALL(unix_wg_parser_stream_get_buffer, &params);
++}
++
++enum wg_parser_read_status wg_parser_stream_try_read(wg_parser_t parser, wg_parser_stream_t stream,
++        UINT64 *epoch, struct wg_parser_buffer *buffer, void *data, UINT32 capacity)
++{
++    struct wg_parser_stream_try_read_params params =
++    {
++        .parser = parser, .stream = stream, .epoch = *epoch,
++        .buffer = buffer, .data = data, .capacity = capacity, .status = WG_PARSER_READ_ERROR,
++    };
++    if (WINE_UNIX_CALL(unix_wg_parser_stream_try_read, &params))
++        return WG_PARSER_READ_ERROR;
++    *epoch = params.epoch;
++    return params.status;
+ }
+ 
+ bool wg_parser_stream_copy_buffer(wg_parser_stream_t stream,
+--- a/dlls/winegstreamer/media_source.c
++++ b/dlls/winegstreamer/media_source.c
+@@ -26,6 +26,11 @@
+ #include "wine/list.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(mfplat);
++WINE_DECLARE_DEBUG_CHANNEL(mfloop);
++#include "source_buffer_private.h"
++static ULONGLONG source_timing_now(void) { LARGE_INTEGER t; QueryPerformanceCounter(&t); return t.QuadPart; }
++struct source_timing { ULONGLONG requests, pumps, ready, blocked, cancelled, bytes, retry_count, retry_sum, retry_max, preflight, allocation, copy, publish, first_wall, last_wall; LONGLONG first_pts, last_pts; };
++
+ 
+ struct object_context
+ {
+@@ -119,6 +124,8 @@
+     return S_OK;
+ }
+ 
++struct source_async_command;
++
+ struct media_stream
+ {
+     IMFMediaStream IMFMediaStream_iface;
+@@ -130,10 +137,14 @@
+ 
+     wg_parser_stream_t wg_stream;
+ 
+-    IUnknown **token_queue;
+-    LONG token_queue_count;
+-    LONG token_queue_cap;
+-
++    struct source_async_command *request_head, *request_tail;
++    BOOL pump_pending, retry_pending;
++    UINT64 retry_serial;
++    MFWORKITEM_KEY retry_key;
++
++    struct source_timing timing;
++    struct source_buffer_pool *buffer_pool;
++    BOOL raw_video;
+     DWORD stream_id;
+     BOOL active;
+     BOOL eos;
+@@ -145,6 +156,8 @@
+     SOURCE_ASYNC_PAUSE,
+     SOURCE_ASYNC_STOP,
+     SOURCE_ASYNC_REQUEST_SAMPLE,
++    SOURCE_ASYNC_SAMPLE_PUMP,
++    SOURCE_ASYNC_SAMPLE_RETRY,
+ };
+ 
+ struct source_async_command
+@@ -152,6 +165,7 @@
+     IUnknown IUnknown_iface;
+     LONG refcount;
+     enum source_async_op op;
++    struct source_async_command *next;
+     union
+     {
+         struct
+@@ -164,6 +178,8 @@
+         {
+             struct media_stream *stream;
+             IUnknown *token;
++            UINT64 epoch, retry_serial;
++            ULONGLONG scheduled_at;
+         } request_sample;
+     } u;
+ };
+@@ -177,6 +193,7 @@
+     IMFAsyncCallback async_commands_callback;
+     LONG ref;
+     DWORD async_commands_queue;
++    UINT64 sample_epoch;
+     IMFMediaEventQueue *event_queue;
+     IMFByteStream *byte_stream;
+ 
+@@ -204,6 +221,36 @@
+     bool read_thread_shutdown;
+ };
+ 
++static HRESULT schedule_sample_pump(struct media_stream *stream);
++static void cancel_sample_retry(struct media_stream *stream);
++static void source_timing_snapshot(struct media_source *source, struct media_stream *stream, const char *reason)
++{
++    struct source_timing *t = &stream->timing;
++    LARGE_INTEGER freq;
++    if (!t->requests && !t->pumps) return;
++    QueryPerformanceFrequency(&freq);
++    TRACE_(mfloop)("SourceTiming source %p stream %lu epoch %s reason %s freq %s requests %s pumps %s ready %s blocked %s cancelled %s bytes %s retry_count %s retry_sum %s retry_max %s preflight %s allocation %s copy %s publish %s first_wall %s last_wall %s first_pts %s last_pts %s\n",
++        source, stream->stream_id, wine_dbgstr_longlong(source->sample_epoch), reason, wine_dbgstr_longlong(freq.QuadPart),
++        wine_dbgstr_longlong(t->requests), wine_dbgstr_longlong(t->pumps), wine_dbgstr_longlong(t->ready), wine_dbgstr_longlong(t->blocked),
++        wine_dbgstr_longlong(t->cancelled), wine_dbgstr_longlong(t->bytes), wine_dbgstr_longlong(t->retry_count), wine_dbgstr_longlong(t->retry_sum),
++        wine_dbgstr_longlong(t->retry_max), wine_dbgstr_longlong(t->preflight), wine_dbgstr_longlong(t->allocation), wine_dbgstr_longlong(t->copy),
++        wine_dbgstr_longlong(t->publish), wine_dbgstr_longlong(t->first_wall), wine_dbgstr_longlong(t->last_wall), wine_dbgstr_longlong(t->first_pts), wine_dbgstr_longlong(t->last_pts));
++    if (stream->buffer_pool)
++    {
++        struct source_pool_stats pool;
++        source_pool_snapshot(stream->buffer_pool, &pool);
++        TRACE_(mfloop)("SourcePool stream %lu allocations %s hits %s active %s cached %u cached_bytes %s active_bytes %s peak_bytes %s\n",
++                stream->stream_id, wine_dbgstr_longlong(pool.allocations), wine_dbgstr_longlong(pool.hits),
++                wine_dbgstr_longlong(pool.active), pool.cached, wine_dbgstr_longlong(pool.cached_bytes),
++                wine_dbgstr_longlong(pool.active_bytes), wine_dbgstr_longlong(pool.peak_bytes));
++    }
++    memset(t, 0, sizeof(*t));
++}
++
++static void invalidate_sample_work(struct media_source *source);
++static HRESULT source_sample_pump(struct media_source *source, struct media_stream *stream);
++static void source_sample_error(struct media_source *source, struct media_stream *stream, HRESULT hr);
++
+ static inline struct media_stream *impl_from_IMFMediaStream(IMFMediaStream *iface)
+ {
+     return CONTAINING_RECORD(iface, struct media_stream, IMFMediaStream_iface);
+@@ -271,10 +318,13 @@
+             IMFPresentationDescriptor_Release(command->u.start.descriptor);
+             PropVariantClear(&command->u.start.position);
+         }
+-        else if (command->op == SOURCE_ASYNC_REQUEST_SAMPLE)
++        else if (command->op == SOURCE_ASYNC_REQUEST_SAMPLE || command->op == SOURCE_ASYNC_SAMPLE_PUMP
++                || command->op == SOURCE_ASYNC_SAMPLE_RETRY)
+         {
+             if (command->u.request_sample.token)
+                 IUnknown_Release(command->u.request_sample.token);
++            if (command->u.request_sample.stream)
++                IMFMediaStream_Release(&command->u.request_sample.stream->IMFMediaStream_iface);
+         }
+         free(command);
+     }
+@@ -511,56 +561,109 @@
+     return hr;
+ }
+ 
+-static BOOL enqueue_token(struct media_stream *stream, IUnknown *token)
+-{
+-    if (stream->token_queue_count == stream->token_queue_cap)
+-    {
+-        IUnknown **buf;
+-        stream->token_queue_cap = stream->token_queue_cap * 2 + 1;
+-        buf = realloc(stream->token_queue, stream->token_queue_cap * sizeof(*buf));
+-        if (buf)
+-            stream->token_queue = buf;
+-        else
+-        {
+-            stream->token_queue_cap = stream->token_queue_count;
+-            return FALSE;
+-        }
+-    }
+-    stream->token_queue[stream->token_queue_count++] = token;
+-    return TRUE;
++/* Every FIFO node is an AddRef'd command, owning both token and stream. */
++static void enqueue_sample_request(struct media_stream *stream, struct source_async_command *command)
++{
++    IUnknown_AddRef(&command->IUnknown_iface);
++    command->next = NULL;
++    if (stream->request_tail) stream->request_tail->next = command;
++    else stream->request_head = command;
++    stream->request_tail = command;
+ }
+ 
+ static void flush_token_queue(struct media_stream *stream, BOOL send)
+ {
++    struct source_async_command *command;
++    if (send)
++    {
++        HRESULT hr = schedule_sample_pump(stream);
++        if (FAILED(hr)) source_sample_error(impl_from_IMFMediaSource(stream->media_source), stream, hr);
++        return;
++    }
++    cancel_sample_retry(stream);
++    while ((command = stream->request_head))
++    {
++        stream->request_head = command->next;
++        IUnknown_Release(&command->IUnknown_iface);
++    }
++    stream->request_tail = NULL;
++}
++
++static void source_sample_error(struct media_source *source, struct media_stream *stream, HRESULT hr)
++{
++    flush_token_queue(stream, FALSE);
++    IMFMediaEventQueue_QueueEventParamVar(source->event_queue, MEError, &GUID_NULL, hr, NULL);
++}
++
++static HRESULT create_stream_op(struct media_stream *stream, enum source_async_op kind,
++        struct source_async_command **out)
++{
+     struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
+-    LONG i;
+-
+-    for (i = 0; i < stream->token_queue_count; i++)
+-    {
+-        if (send)
+-        {
+-            IUnknown *op;
+-            HRESULT hr;
+-
+-            if (SUCCEEDED(hr = source_create_async_op(SOURCE_ASYNC_REQUEST_SAMPLE, &op)))
+-            {
+-                struct source_async_command *command = impl_from_async_command_IUnknown(op);
+-                command->u.request_sample.stream = stream;
+-                command->u.request_sample.token = stream->token_queue[i];
+-
+-                hr = MFPutWorkItem(source->async_commands_queue, &source->async_commands_callback, op);
+-                IUnknown_Release(op);
+-            }
+-            if (FAILED(hr))
+-                WARN("Could not enqueue sample request, hr %#lx\n", hr);
+-        }
+-        else if (stream->token_queue[i])
+-            IUnknown_Release(stream->token_queue[i]);
+-    }
+-    free(stream->token_queue);
+-    stream->token_queue = NULL;
+-    stream->token_queue_count = 0;
+-    stream->token_queue_cap = 0;
++    IUnknown *op;
++    HRESULT hr = source_create_async_op(kind, &op);
++    if (FAILED(hr)) return hr;
++    *out = impl_from_async_command_IUnknown(op);
++    (*out)->u.request_sample.stream = stream;
++    (*out)->u.request_sample.epoch = source->sample_epoch;
++    IMFMediaStream_AddRef(&stream->IMFMediaStream_iface);
++    return S_OK;
++}
++
++static void cancel_sample_retry(struct media_stream *stream)
++{
++    ++stream->retry_serial;
++    if (stream->retry_pending)
++    {
++        MFCancelWorkItem(stream->retry_key);
++        stream->retry_pending = FALSE;
++    }
++}
++
++static HRESULT schedule_sample_pump(struct media_stream *stream)
++{
++    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
++    struct source_async_command *command;
++    HRESULT hr;
++    if (source->state != SOURCE_RUNNING || !stream->active || !stream->request_head
++            || stream->pump_pending || stream->retry_pending) return S_OK;
++    if (FAILED(hr = create_stream_op(stream, SOURCE_ASYNC_SAMPLE_PUMP, &command))) return hr;
++    stream->pump_pending = TRUE;
++    hr = MFPutWorkItem(source->async_commands_queue, &source->async_commands_callback,
++            &command->IUnknown_iface);
++    if (FAILED(hr)) stream->pump_pending = FALSE;
++    IUnknown_Release(&command->IUnknown_iface);
++    return hr;
++}
++
++static HRESULT schedule_sample_retry(struct media_stream *stream)
++{
++    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
++    struct source_async_command *command;
++    HRESULT hr;
++    if (stream->retry_pending || source->state != SOURCE_RUNNING) return S_OK;
++    if (FAILED(hr = create_stream_op(stream, SOURCE_ASYNC_SAMPLE_RETRY, &command))) return hr;
++    command->u.request_sample.retry_serial = ++stream->retry_serial;
++    stream->retry_pending = TRUE;
++    command->u.request_sample.scheduled_at = source_timing_now();
++    /* Negative relative time is in milliseconds in MFScheduleWorkItem. */
++    hr = MFScheduleWorkItem(&source->async_commands_callback, &command->IUnknown_iface,
++            -1, &stream->retry_key);
++    if (FAILED(hr)) stream->retry_pending = FALSE;
++    IUnknown_Release(&command->IUnknown_iface);
++    return hr;
++}
++
++static void invalidate_sample_work(struct media_source *source)
++{
++    unsigned int i;
++    for (i = 0; i < source->stream_count; ++i)
++        source_timing_snapshot(source, source->streams[i], "invalidate");
++    if (!++source->sample_epoch) ++source->sample_epoch;
++    for (i = 0; i < source->stream_count; ++i)
++    {
++        source->streams[i]->pump_pending = FALSE;
++        flush_token_queue(source->streams[i], FALSE);
++    }
+ }
+ 
+ static HRESULT media_stream_start(struct media_stream *stream, BOOL active, BOOL seeking, const PROPVARIANT *position)
+@@ -631,6 +734,8 @@
+         }
+     }
+ 
++    if (position->vt != VT_EMPTY) invalidate_sample_work(source);
++
+     for (i = 0; i < source->stream_count; i++)
+     {
+         struct media_stream *stream = source->streams[i];
+@@ -640,7 +745,10 @@
+             stream->eos = FALSE;
+ 
+         if (!(stream->active = !!descriptors[i]))
++        {
++            flush_token_queue(stream, FALSE);
+             wg_parser_stream_disable(stream->wg_stream);
++        }
+         else
+         {
+             if (FAILED(hr = media_stream_start(stream, was_active, seek_message, position)))
+@@ -674,9 +782,11 @@
+     if (source->state == SOURCE_SHUTDOWN)
+         return MF_E_SHUTDOWN;
+ 
++    source->state = SOURCE_PAUSED;
+     for (i = 0; i < source->stream_count; i++)
+     {
+         struct media_stream *stream = source->streams[i];
++        cancel_sample_retry(stream);
+         if (stream->active && FAILED(hr = IMFMediaEventQueue_QueueEventParamVar(stream->event_queue, MEStreamPaused,
+                     &GUID_NULL, S_OK, NULL)))
+             WARN("Failed to queue MEStreamPaused event, hr %#lx\n", hr);
+@@ -695,6 +805,9 @@
+ 
+     if (source->state == SOURCE_SHUTDOWN)
+         return MF_E_SHUTDOWN;
++
++    source->state = SOURCE_STOPPED;
++    invalidate_sample_work(source);
+ 
+     for (i = 0; i < source->stream_count; i++)
+     {
+@@ -712,53 +825,6 @@
+     return IMFMediaEventQueue_QueueEventParamVar(source->event_queue, MESourceStopped, &GUID_NULL, S_OK, NULL);
+ }
+ 
+-static HRESULT media_stream_send_sample(struct media_stream *stream, const struct wg_parser_buffer *wg_buffer, IUnknown *token)
+-{
+-    IMFSample *sample = NULL;
+-    IMFMediaBuffer *buffer;
+-    HRESULT hr;
+-    BYTE *data;
+-
+-    if (FAILED(hr = MFCreateMemoryBuffer(wg_buffer->size, &buffer)))
+-        return hr;
+-    if (FAILED(hr = IMFMediaBuffer_SetCurrentLength(buffer, wg_buffer->size)))
+-        goto out;
+-    if (FAILED(hr = IMFMediaBuffer_Lock(buffer, &data, NULL, NULL)))
+-        goto out;
+-
+-    if (!wg_parser_stream_copy_buffer(stream->wg_stream, data, 0, wg_buffer->size))
+-    {
+-        hr = S_FALSE;
+-        wg_parser_stream_release_buffer(stream->wg_stream);
+-        IMFMediaBuffer_Unlock(buffer);
+-        goto out;
+-    }
+-    wg_parser_stream_release_buffer(stream->wg_stream);
+-
+-    if (FAILED(hr = IMFMediaBuffer_Unlock(buffer)))
+-        goto out;
+-
+-    if (FAILED(hr = MFCreateSample(&sample)))
+-        goto out;
+-    if (FAILED(hr = IMFSample_AddBuffer(sample, buffer)))
+-        goto out;
+-    if (FAILED(hr = IMFSample_SetSampleTime(sample, wg_buffer->pts)))
+-        goto out;
+-    if (FAILED(hr = IMFSample_SetSampleDuration(sample, wg_buffer->duration)))
+-        goto out;
+-    if (token && FAILED(hr = IMFSample_SetUnknown(sample, &MFSampleExtension_Token, token)))
+-        goto out;
+-
+-    hr = IMFMediaEventQueue_QueueEventParamUnk(stream->event_queue, MEMediaSample,
+-            &GUID_NULL, S_OK, (IUnknown *)sample);
+-
+-out:
+-    if (sample)
+-        IMFSample_Release(sample);
+-    IMFMediaBuffer_Release(buffer);
+-    return hr;
+-}
+-
+ static HRESULT media_stream_send_eos(struct media_source *source, struct media_stream *stream)
+ {
+     PROPVARIANT empty = {.vt = VT_EMPTY};
+@@ -767,6 +833,7 @@
+ 
+     TRACE("source %p, stream %p\n", source, stream);
+ 
++    source_timing_snapshot(source, stream, "eos");
+     stream->eos = TRUE;
+     if (FAILED(hr = IMFMediaEventQueue_QueueEventParamVar(stream->event_queue, MEEndOfStream, &GUID_NULL, S_OK, &empty)))
+         WARN("Failed to queue MEEndOfStream event, hr %#lx\n", hr);
+@@ -783,38 +850,80 @@
+     return S_OK;
+ }
+ 
+-static bool stream_get_buffer(struct media_stream *stream, struct wg_parser_buffer *buffer)
+-{
+-    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
+-    wg_parser_stream_t wg_stream = stream->wg_stream;
+-    wg_parser_t wg_parser = source->wg_parser;
+-    bool ret;
+-
+-    LeaveCriticalSection(&source->cs);
+-    ret = wg_parser_stream_get_buffer(wg_parser, wg_stream, buffer);
+-    EnterCriticalSection(&source->cs);
+-
+-    return ret;
+-}
+-
+-static HRESULT wait_on_sample(struct media_stream *stream, IUnknown *token)
+-{
+-    struct media_source *source = impl_from_IMFMediaSource(stream->media_source);
+-    struct wg_parser_buffer buffer;
+-
+-    TRACE("%p, %p\n", stream, token);
+-
+-    while (stream_get_buffer(stream, &buffer))
+-    {
+-        HRESULT hr = media_stream_send_sample(stream, &buffer, token);
+-        if (hr != S_FALSE)
+-            return hr;
+-    }
+-
+-    if (source->state == SOURCE_SHUTDOWN)
+-        return S_OK;
+-
+-    return media_stream_send_eos(source, stream);
++/* No Unix buffer loan crosses calls: preflight is advisory; actual read/copy/
++ * release is atomic in Unix and epoch-checked against asynchronous Gst flush. */
++static HRESULT source_sample_pump(struct media_source *source, struct media_stream *stream)
++{
++    struct source_async_command *request = stream->request_head;
++    struct wg_parser_buffer meta;
++    enum wg_parser_read_status status;
++    IMFMediaBuffer *buffer = NULL;
++    IMFSample *sample = NULL;
++    UINT64 epoch = 0;
++    ULONGLONG before;
++    BYTE *data;
++    HRESULT hr = S_OK;
++
++    if (source->state != SOURCE_RUNNING || !stream->active || !request) return S_OK;
++    ++stream->timing.pumps;
++    before = source_timing_now();
++    status = wg_parser_stream_try_read(source->wg_parser, stream->wg_stream, &epoch, &meta, NULL, 0);
++    stream->timing.preflight += source_timing_now() - before;
++    if (status == WG_PARSER_READ_WOULD_BLOCK) ++stream->timing.blocked;
++    if (status == WG_PARSER_READ_CANCELLED) ++stream->timing.cancelled;
++    if (status == WG_PARSER_READ_EOS)
++    {
++        hr = media_stream_send_eos(source, stream);
++        flush_token_queue(stream, FALSE);
++        return hr;
++    }
++    if (status == WG_PARSER_READ_WOULD_BLOCK || status == WG_PARSER_READ_CANCELLED)
++        return schedule_sample_retry(stream);
++    if (status != WG_PARSER_READ_NEED_BUFFER) return E_UNEXPECTED;
++    before = source_timing_now();
++    hr = stream->raw_video ? source_buffer_create(&stream->buffer_pool, meta.size, &buffer)
++            : MFCreateMemoryBuffer(meta.size, &buffer);
++    stream->timing.allocation += source_timing_now() - before;
++    if (FAILED(hr)) return hr;
++    if (FAILED(hr = IMFMediaBuffer_Lock(buffer, &data, NULL, NULL))) goto out;
++    before = source_timing_now();
++    status = wg_parser_stream_try_read(source->wg_parser, stream->wg_stream, &epoch, &meta, data, meta.size);
++    stream->timing.copy += source_timing_now() - before;
++    IMFMediaBuffer_Unlock(buffer);
++    if (status != WG_PARSER_READ_READY)
++    {
++        if (status == WG_PARSER_READ_ERROR) hr = E_UNEXPECTED;
++        else hr = schedule_sample_retry(stream); /* never turn cancellation into EOS */
++        goto out;
++    }
++    ++stream->timing.ready;
++    stream->timing.bytes += meta.size;
++    if (stream->timing.ready == 1) { stream->timing.first_pts = meta.pts; stream->timing.first_wall = GetTickCount64(); }
++    stream->timing.last_pts = meta.pts;
++    stream->timing.last_wall = GetTickCount64();
++    hr = stream->raw_video ? source_buffer_seal(buffer, meta.size) : IMFMediaBuffer_SetCurrentLength(buffer, meta.size);
++    if (FAILED(hr)) goto out;
++    if (FAILED(hr = MFCreateSample(&sample))) goto out;
++    if (FAILED(hr = IMFSample_AddBuffer(sample, buffer))) goto out;
++    if (FAILED(hr = IMFSample_SetSampleTime(sample, meta.pts))) goto out;
++    if (FAILED(hr = IMFSample_SetSampleDuration(sample, meta.duration))) goto out;
++    if (request->u.request_sample.token && FAILED(hr = IMFSample_SetUnknown(sample,
++            &MFSampleExtension_Token, request->u.request_sample.token))) goto out;
++    before = source_timing_now();
++    hr = IMFMediaEventQueue_QueueEventParamUnk(stream->event_queue, MEMediaSample,
++            &GUID_NULL, S_OK, (IUnknown *)sample);
++    stream->timing.publish += source_timing_now() - before;
++    if (SUCCEEDED(hr))
++    {
++        stream->request_head = request->next;
++        if (!stream->request_head) stream->request_tail = NULL;
++        IUnknown_Release(&request->IUnknown_iface);
++        hr = schedule_sample_pump(stream);
++    }
++ out:
++    if (sample) IMFSample_Release(sample);
++    if (buffer) IMFMediaBuffer_Release(buffer);
++    return hr;
+ }
+ 
+ static HRESULT WINAPI source_async_commands_Invoke(IMFAsyncCallback *iface, IMFAsyncResult *result)
+@@ -851,12 +960,43 @@
+                 WARN("Failed to stop source %p, hr %#lx\n", source, hr);
+             break;
+         case SOURCE_ASYNC_REQUEST_SAMPLE:
+-            if (source->state == SOURCE_PAUSED)
+-                enqueue_token(command->u.request_sample.stream, command->u.request_sample.token);
+-            else if (source->state == SOURCE_RUNNING)
++            if (source->state == SOURCE_PAUSED || source->state == SOURCE_RUNNING)
+             {
+-                if (FAILED(hr = wait_on_sample(command->u.request_sample.stream, command->u.request_sample.token)))
+-                    WARN("Failed to request sample, hr %#lx\n", hr);
++                struct media_stream *stream = command->u.request_sample.stream;
++                if (stream->active && !stream->eos)
++                {
++                    ++stream->timing.requests;
++                    enqueue_sample_request(stream, command);
++                    if (FAILED(hr = schedule_sample_pump(stream)))
++                        source_sample_error(source, stream, hr);
++                }
++            }
++            break;
++        case SOURCE_ASYNC_SAMPLE_PUMP:
++            if (command->u.request_sample.epoch == source->sample_epoch && source->state != SOURCE_SHUTDOWN)
++            {
++                struct media_stream *stream = command->u.request_sample.stream;
++                stream->pump_pending = FALSE;
++                if (FAILED(hr = source_sample_pump(source, stream)))
++                {
++                    source_sample_error(source, stream, hr);
++                }
++            }
++            break;
++        case SOURCE_ASYNC_SAMPLE_RETRY:
++            if (command->u.request_sample.epoch == source->sample_epoch && source->state != SOURCE_SHUTDOWN)
++            {
++                struct media_stream *stream = command->u.request_sample.stream;
++                if (command->u.request_sample.retry_serial == stream->retry_serial)
++                {
++                    ULONGLONG delay = source_timing_now() - command->u.request_sample.scheduled_at;
++                    ++stream->timing.retry_count;
++                    stream->timing.retry_sum += delay;
++                    if (delay > stream->timing.retry_max) stream->timing.retry_max = delay;
++                    stream->retry_pending = FALSE;
++                    if (FAILED(hr = schedule_sample_pump(stream)))
++                        source_sample_error(source, stream, hr);
++                }
+             }
+             break;
+     }
+@@ -979,6 +1119,7 @@
+ 
+     if (!ref)
+     {
++        source_pool_close(&stream->buffer_pool);
+         IMFMediaSource_Release(stream->media_source);
+         IMFStreamDescriptor_Release(stream->descriptor);
+         IMFMediaEventQueue_Release(stream->event_queue);
+@@ -1093,6 +1234,7 @@
+     {
+         struct source_async_command *command = impl_from_async_command_IUnknown(op);
+         command->u.request_sample.stream = stream;
++        IMFMediaStream_AddRef(&stream->IMFMediaStream_iface);
+         if (token)
+             IUnknown_AddRef(token);
+         command->u.request_sample.token = token;
+@@ -1575,6 +1717,7 @@
+     }
+ 
+     source->state = SOURCE_SHUTDOWN;
++    invalidate_sample_work(source);
+ 
+     wg_parser_disconnect(source->wg_parser);
+ 
+@@ -1589,6 +1732,7 @@
+     while (source->stream_count--)
+     {
+         struct media_stream *stream = source->streams[source->stream_count];
++        source_pool_close(&stream->buffer_pool);
+         IMFStreamDescriptor_Release(source->descriptors[source->stream_count]);
+         IMFMediaEventQueue_QueueEventParamVar(stream->event_queue, MEError, &GUID_NULL, MF_E_SHUTDOWN, NULL);
+         IMFMediaEventQueue_Shutdown(stream->event_queue);
+@@ -1680,6 +1824,7 @@
+     object->read_thread = CreateThread(NULL, 0, read_thread, object, 0, NULL);
+ 
+     object->state = SOURCE_OPENING;
++    object->sample_epoch = 1;
+ 
+     if (FAILED(hr = wg_parser_connect(parser, object->file_size, context->url)))
+         goto fail;
+@@ -1709,6 +1854,7 @@
+             goto fail;
+         }
+ 
++        stream->raw_video = format.major_type == WG_MAJOR_TYPE_VIDEO;
+         object->duration = max(object->duration, wg_parser_stream_get_duration(wg_stream));
+         IMFStreamDescriptor_AddRef(descriptor);
+         object->descriptors[i] = descriptor;
+--- /dev/null
++++ b/dlls/winegstreamer/source_buffer_private.h
+@@ -0,0 +1,238 @@
++/* Private source-owned IMFMediaBuffer. Payload is not exposed to a consumer
++ * until parser READY and source_buffer_seal() attest a complete initialized
++ * range. Cache storage is never reused before the last COM reference. */
++#include <malloc.h>
++#define SOURCE_POOL_SLOTS 2
++#define SOURCE_POOL_BYTES (64u * 1024u * 1024u)
++struct source_buffer_pool
++{
++    LONG refs;
++    SRWLOCK lock;
++    BOOL closed;
++    unsigned int count;
++    SIZE_T cached_bytes, active_bytes, peak_bytes;
++    ULONGLONG hits, allocations, active;
++    struct { BYTE *data; DWORD capacity; } slots[SOURCE_POOL_SLOTS];
++};
++struct source_buffer
++{
++    IMFMediaBuffer IMFMediaBuffer_iface;
++    LONG refs;
++    SRWLOCK lock;
++    struct source_buffer_pool *pool;
++    BYTE *data;
++    DWORD capacity, maximum, length;
++    BOOL sealed;
++};
++static void source_pool_release(struct source_buffer_pool *pool)
++{
++    if (pool && !InterlockedDecrement(&pool->refs)) free(pool);
++}
++/* Caller serializes owner creation/close with the existing media source cs. */
++static void source_pool_close(struct source_buffer_pool **owner)
++{
++    struct source_buffer_pool *pool = *owner;
++    BYTE *data[SOURCE_POOL_SLOTS];
++    unsigned int i, count;
++    if (!pool) return;
++    *owner = NULL;
++    AcquireSRWLockExclusive(&pool->lock);
++    pool->closed = TRUE;
++    count = pool->count;
++    for (i = 0; i < count; ++i) data[i] = pool->slots[i].data;
++    pool->count = 0;
++    pool->cached_bytes = 0;
++    ReleaseSRWLockExclusive(&pool->lock);
++    for (i = 0; i < count; ++i) _aligned_free(data[i]);
++    source_pool_release(pool);
++}
++static void source_pool_return(struct source_buffer_pool *pool, BYTE *data, DWORD capacity)
++{
++    BOOL keep;
++    AcquireSRWLockExclusive(&pool->lock);
++    --pool->active;
++    pool->active_bytes -= capacity;
++    keep = !pool->closed && pool->count < SOURCE_POOL_SLOTS && capacity <= SOURCE_POOL_BYTES
++            && pool->cached_bytes <= SOURCE_POOL_BYTES - capacity;
++    if (keep)
++    {
++        pool->slots[pool->count].data = data;
++        pool->slots[pool->count++].capacity = capacity;
++        pool->cached_bytes += capacity;
++    }
++    ReleaseSRWLockExclusive(&pool->lock);
++    if (!keep) _aligned_free(data);
++    source_pool_release(pool);
++}
++static HRESULT source_pool_take(struct source_buffer_pool **owner, DWORD requested,
++        struct source_buffer_pool **lease, BYTE **data, DWORD *capacity)
++{
++    struct source_buffer_pool *pool = *owner;
++    unsigned int i, best = SOURCE_POOL_SLOTS;
++    DWORD required = requested ? requested : 1;
++    *lease = NULL;
++    *data = NULL;
++    if (!pool)
++    {
++        if (!(pool = calloc(1, sizeof(*pool)))) return E_OUTOFMEMORY;
++        pool->refs = 1;
++        *owner = pool;
++    }
++    AcquireSRWLockExclusive(&pool->lock);
++    if (pool->closed) { ReleaseSRWLockExclusive(&pool->lock); return MF_E_SHUTDOWN; }
++    InterlockedIncrement(&pool->refs);
++    for (i = 0; i < pool->count; ++i)
++        if (pool->slots[i].capacity >= required
++                && (best == SOURCE_POOL_SLOTS || pool->slots[i].capacity < pool->slots[best].capacity)) best = i;
++    if (best != SOURCE_POOL_SLOTS)
++    {
++        *data = pool->slots[best].data;
++        *capacity = pool->slots[best].capacity;
++        pool->cached_bytes -= *capacity;
++        pool->slots[best] = pool->slots[--pool->count];
++        ++pool->hits;
++    }
++    ReleaseSRWLockExclusive(&pool->lock);
++    if (!*data)
++    {
++        *capacity = required;
++        if (!(*data = _aligned_malloc(required, 16))) { source_pool_release(pool); return E_OUTOFMEMORY; }
++        AcquireSRWLockExclusive(&pool->lock);
++        ++pool->allocations;
++        ReleaseSRWLockExclusive(&pool->lock);
++    }
++    AcquireSRWLockExclusive(&pool->lock);
++    ++pool->active;
++    pool->active_bytes += *capacity;
++    if (pool->active_bytes > pool->peak_bytes) pool->peak_bytes = pool->active_bytes;
++    ReleaseSRWLockExclusive(&pool->lock);
++    *lease = pool;
++    return S_OK;
++}
++static struct source_buffer *source_buffer_from_iface(IMFMediaBuffer *iface)
++{
++    return CONTAINING_RECORD(iface, struct source_buffer, IMFMediaBuffer_iface);
++}
++static HRESULT WINAPI source_buffer_QueryInterface(IMFMediaBuffer *iface, REFIID iid, void **out)
++{
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!IsEqualIID(iid, &IID_IUnknown) && !IsEqualIID(iid, &IID_IMFMediaBuffer)) return E_NOINTERFACE;
++    *out = iface;
++    IMFMediaBuffer_AddRef(iface);
++    return S_OK;
++}
++static ULONG WINAPI source_buffer_AddRef(IMFMediaBuffer *iface)
++{
++    return InterlockedIncrement(&source_buffer_from_iface(iface)->refs);
++}
++static ULONG WINAPI source_buffer_Release(IMFMediaBuffer *iface)
++{
++    struct source_buffer *buffer = source_buffer_from_iface(iface);
++    ULONG refs = InterlockedDecrement(&buffer->refs);
++    if (!refs)
++    {
++        source_pool_return(buffer->pool, buffer->data, buffer->capacity);
++        free(buffer);
++    }
++    return refs;
++}
++static HRESULT WINAPI source_buffer_Lock(IMFMediaBuffer *iface, BYTE **data, DWORD *maximum, DWORD *length)
++{
++    struct source_buffer *buffer = source_buffer_from_iface(iface);
++    if (!data) return E_INVALIDARG;
++    AcquireSRWLockExclusive(&buffer->lock);
++    *data = buffer->data;
++    if (maximum) *maximum = buffer->maximum;
++    if (length) *length = buffer->length;
++    ReleaseSRWLockExclusive(&buffer->lock);
++    return S_OK;
++}
++static HRESULT WINAPI source_buffer_Unlock(IMFMediaBuffer *iface)
++{
++    (void)iface;
++    return S_OK;
++}
++static HRESULT WINAPI source_buffer_GetCurrentLength(IMFMediaBuffer *iface, DWORD *length)
++{
++    struct source_buffer *buffer = source_buffer_from_iface(iface);
++    if (!length) return E_INVALIDARG;
++    AcquireSRWLockExclusive(&buffer->lock);
++    *length = buffer->length;
++    ReleaseSRWLockExclusive(&buffer->lock);
++    return S_OK;
++}
++static HRESULT WINAPI source_buffer_SetCurrentLength(IMFMediaBuffer *iface, DWORD length)
++{
++    struct source_buffer *buffer = source_buffer_from_iface(iface);
++    HRESULT hr = S_OK;
++    AcquireSRWLockExclusive(&buffer->lock);
++    if (length > buffer->maximum) hr = E_INVALIDARG;
++    else buffer->length = length;
++    ReleaseSRWLockExclusive(&buffer->lock);
++    return hr;
++}
++static HRESULT WINAPI source_buffer_GetMaxLength(IMFMediaBuffer *iface, DWORD *maximum)
++{
++    struct source_buffer *buffer = source_buffer_from_iface(iface);
++    if (!maximum) return E_INVALIDARG;
++    AcquireSRWLockExclusive(&buffer->lock);
++    *maximum = buffer->maximum;
++    ReleaseSRWLockExclusive(&buffer->lock);
++    return S_OK;
++}
++static const IMFMediaBufferVtbl source_buffer_vtbl =
++{
++    source_buffer_QueryInterface, source_buffer_AddRef, source_buffer_Release,
++    source_buffer_Lock, source_buffer_Unlock, source_buffer_GetCurrentLength,
++    source_buffer_SetCurrentLength, source_buffer_GetMaxLength,
++};
++static HRESULT source_buffer_create(struct source_buffer_pool **owner, DWORD requested, IMFMediaBuffer **out)
++{
++    struct source_buffer *buffer;
++    HRESULT hr;
++    *out = NULL;
++    if (!(buffer = calloc(1, sizeof(*buffer)))) return E_OUTOFMEMORY;
++    hr = source_pool_take(owner, requested, &buffer->pool, &buffer->data, &buffer->capacity);
++    if (FAILED(hr)) { free(buffer); return hr; }
++    buffer->IMFMediaBuffer_iface.lpVtbl = &source_buffer_vtbl;
++    buffer->refs = 1;
++    buffer->maximum = requested;
++    *out = &buffer->IMFMediaBuffer_iface;
++    return S_OK;
++}
++/* Private producer operation, only after the atomic parser copy returned READY.
++ * Narrow max as well as current length: no uninitialized allocation tail is
++ * advertised if actual metadata size is smaller than advisory preflight. */
++static HRESULT source_buffer_seal(IMFMediaBuffer *iface, DWORD initialized)
++{
++    struct source_buffer *buffer = source_buffer_from_iface(iface);
++    HRESULT hr = S_OK;
++    AcquireSRWLockExclusive(&buffer->lock);
++    if (buffer->sealed || initialized > buffer->maximum) hr = E_INVALIDARG;
++    else
++    {
++        buffer->maximum = buffer->length = initialized;
++        buffer->sealed = TRUE;
++    }
++    ReleaseSRWLockExclusive(&buffer->lock);
++    return hr;
++}
++struct source_pool_stats
++{
++    ULONGLONG hits, allocations, active;
++    SIZE_T cached_bytes, active_bytes, peak_bytes;
++    unsigned int cached;
++};
++static void source_pool_snapshot(struct source_buffer_pool *pool, struct source_pool_stats *stats)
++{
++    AcquireSRWLockExclusive(&pool->lock);
++    stats->hits = pool->hits;
++    stats->allocations = pool->allocations;
++    stats->active = pool->active;
++    stats->cached_bytes = pool->cached_bytes;
++    stats->active_bytes = pool->active_bytes;
++    stats->peak_bytes = pool->peak_bytes;
++    stats->cached = pool->count;
++    ReleaseSRWLockExclusive(&pool->lock);
++}
+--- /dev/null
++++ b/dlls/winegstreamer/timing_private.h
+@@ -0,0 +1,5 @@
++struct wg_output_cache;
++void wg_output_cache_release(struct wg_output_cache *);
++struct wg_read_timing { ULONGLONG wrap, unixread, finish, commit, commits, write_wraps, cache_hits, cache_allocs, cache_fallbacks, cache_bytes; };
++HRESULT wg_transform_read_mf_timed(wg_transform_t, IMFSample *, DWORD *, bool *, struct wg_read_timing *, BOOL, struct wg_output_cache **);
++static inline ULONGLONG convert_timing_now(void) { LARGE_INTEGER t; QueryPerformanceCounter(&t); return t.QuadPart; }
+--- a/dlls/winegstreamer/unixlib.h
++++ b/dlls/winegstreamer/unixlib.h
+@@ -284,6 +284,27 @@
+     struct wg_parser_buffer *buffer;
+ };
+ 
++/* Appended ABI: preflight does not lend a GstBuffer across the boundary. */
++enum wg_parser_read_status
++{
++    WG_PARSER_READ_ERROR,
++    WG_PARSER_READ_READY,
++    WG_PARSER_READ_WOULD_BLOCK,
++    WG_PARSER_READ_NEED_BUFFER,
++    WG_PARSER_READ_EOS,
++    WG_PARSER_READ_CANCELLED,
++};
++struct wg_parser_stream_try_read_params
++{
++    wg_parser_t parser;
++    wg_parser_stream_t stream;
++    UINT64 epoch; /* zero for advisory preflight; nonzero guards segment identity */
++    struct wg_parser_buffer *buffer;
++    void *data;
++    UINT32 capacity;
++    UINT32 status;
++};
++
+ struct wg_parser_stream_copy_buffer_params
+ {
+     wg_parser_stream_t stream;
+@@ -467,6 +488,8 @@
+     unix_wg_muxer_read_data,
+     unix_wg_muxer_finalize,
+ 
++    unix_wg_parser_stream_try_read, /* append: preserve every existing slot */
++
+     unix_wg_funcs_count,
+ };
+ 
+--- a/dlls/winegstreamer/video_processor.c
++++ b/dlls/winegstreamer/video_processor.c
+@@ -16,6 +16,7 @@
+  */
+ 
+ #include "gst_private.h"
++#include "timing_private.h"
+ 
+ #include "mfapi.h"
+ #include "mferror.h"
+@@ -27,6 +28,7 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(mfplat);
+ WINE_DECLARE_DEBUG_CHANNEL(winediag);
++WINE_DECLARE_DEBUG_CHANNEL(mfloop);
+ 
+ extern GUID MFVideoFormat_ABGR32;
+ 
+@@ -91,6 +93,8 @@
+ 
+     IUnknown *device_manager;
+     IMFVideoSampleAllocatorEx *allocator;
++    struct wg_output_cache *output_cache;
++    struct { ULONGLONG inputs, input_time, outputs, ready, output_time, alloc_time, first_wall, batches; struct wg_read_timing read; } timing;
+ };
+ 
+ static void update_video_aperture(MFVideoInfo *input_info, MFVideoInfo *output_info)
+@@ -257,6 +261,7 @@
+ 
+     if (!refcount)
+     {
++        wg_output_cache_release(impl->output_cache);
+         video_processor_uninit_allocator(impl);
+         if (impl->device_manager)
+             IUnknown_Release(impl->device_manager);
+@@ -680,7 +685,7 @@
+     }
+ }
+ 
+-static HRESULT WINAPI video_processor_ProcessInput(IMFTransform *iface, DWORD id, IMFSample *sample, DWORD flags)
++static HRESULT WINAPI video_processor_ProcessInput_impl(IMFTransform *iface, DWORD id, IMFSample *sample, DWORD flags)
+ {
+     struct video_processor *impl = impl_from_IMFTransform(iface);
+ 
+@@ -692,12 +697,23 @@
+     return wg_transform_push_mf(impl->wg_transform, sample, impl->wg_sample_queue);
+ }
+ 
+-static HRESULT WINAPI video_processor_ProcessOutput(IMFTransform *iface, DWORD flags, DWORD count,
++static HRESULT WINAPI video_processor_ProcessInput(IMFTransform *iface, DWORD id, IMFSample *sample, DWORD flags)
++{
++    struct video_processor *impl = impl_from_IMFTransform(iface);
++    ULONGLONG before = convert_timing_now();
++    HRESULT hr = video_processor_ProcessInput_impl(iface, id, sample, flags);
++    ++impl->timing.inputs;
++    impl->timing.input_time += convert_timing_now() - before;
++    return hr;
++}
++
++static HRESULT WINAPI video_processor_ProcessOutput_impl(IMFTransform *iface, DWORD flags, DWORD count,
+         MFT_OUTPUT_DATA_BUFFER *samples, DWORD *status)
+ {
+     struct video_processor *impl = impl_from_IMFTransform(iface);
+     IMFSample *output_sample;
+     HRESULT hr;
++    ULONGLONG before;
+     BOOL playback_mode, provide_samples;
+ 
+     TRACE("iface %p, flags %#lx, count %lu, samples %p, status %p.\n", iface, flags, count, samples, status);
+@@ -719,8 +735,10 @@
+     {
+         if (FAILED(hr = video_processor_init_allocator(impl)))
+             return hr;
+-        if (FAILED(hr = IMFVideoSampleAllocatorEx_AllocateSample(impl->allocator, &output_sample)))
+-            return hr;
++        before = convert_timing_now();
++        hr = IMFVideoSampleAllocatorEx_AllocateSample(impl->allocator, &output_sample);
++        impl->timing.alloc_time += convert_timing_now() - before;
++        if (FAILED(hr)) return hr;
+     }
+     else
+     {
+@@ -729,7 +747,7 @@
+         IMFSample_AddRef(output_sample);
+     }
+ 
+-    if (FAILED(hr = wg_transform_read_mf(impl->wg_transform, output_sample, &samples->dwStatus, NULL)))
++    if (FAILED(hr = wg_transform_read_mf_timed(impl->wg_transform, output_sample, &samples->dwStatus, NULL, &impl->timing.read, TRUE, &impl->output_cache)))
+         goto done;
+     wg_sample_queue_flush(impl->wg_sample_queue, false);
+ 
+@@ -741,6 +759,36 @@
+ 
+ done:
+     IMFSample_Release(output_sample);
++    return hr;
++}
++
++static HRESULT WINAPI video_processor_ProcessOutput(IMFTransform *iface, DWORD flags, DWORD count,
++        MFT_OUTPUT_DATA_BUFFER *samples, DWORD *status)
++{
++    struct video_processor *impl = impl_from_IMFTransform(iface);
++    ULONGLONG before = convert_timing_now();
++    HRESULT hr;
++    if (!impl->timing.first_wall) impl->timing.first_wall = GetTickCount64();
++    hr = video_processor_ProcessOutput_impl(iface, flags, count, samples, status);
++    ++impl->timing.outputs;
++    impl->timing.output_time += convert_timing_now() - before;
++    if (hr == S_OK && ++impl->timing.ready == 120)
++    {
++        LARGE_INTEGER freq;
++        QueryPerformanceFrequency(&freq);
++        TRACE_(mfloop)("ConvertTiming processor %p batch %s freq %s wall_ms %s inputs %s input_time %s outputs %s ready %s output_time %s own_alloc %s wrap %s unix_read %s finish %s commit %s commits %s write_wraps %s cache_hits %s cache_allocs %s cache_fallbacks %s cache_bytes %s\n",
++            impl, wine_dbgstr_longlong(++impl->timing.batches), wine_dbgstr_longlong(freq.QuadPart),
++            wine_dbgstr_longlong(GetTickCount64() - impl->timing.first_wall), wine_dbgstr_longlong(impl->timing.inputs),
++            wine_dbgstr_longlong(impl->timing.input_time), wine_dbgstr_longlong(impl->timing.outputs), wine_dbgstr_longlong(impl->timing.ready),
++            wine_dbgstr_longlong(impl->timing.output_time), wine_dbgstr_longlong(impl->timing.alloc_time), wine_dbgstr_longlong(impl->timing.read.wrap),
++            wine_dbgstr_longlong(impl->timing.read.unixread), wine_dbgstr_longlong(impl->timing.read.finish),
++            wine_dbgstr_longlong(impl->timing.read.commit), wine_dbgstr_longlong(impl->timing.read.commits),
++            wine_dbgstr_longlong(impl->timing.read.write_wraps), wine_dbgstr_longlong(impl->timing.read.cache_hits),
++            wine_dbgstr_longlong(impl->timing.read.cache_allocs), wine_dbgstr_longlong(impl->timing.read.cache_fallbacks), wine_dbgstr_longlong(impl->timing.read.cache_bytes));
++        impl->timing.inputs = impl->timing.input_time = impl->timing.outputs = impl->timing.ready = 0;
++        impl->timing.output_time = impl->timing.alloc_time = impl->timing.first_wall = 0;
++        memset(&impl->timing.read, 0, sizeof(impl->timing.read));
++    }
+     return hr;
+ }
+ 
+--- a/dlls/winegstreamer/wg_parser.c
++++ b/dlls/winegstreamer/wg_parser.c
+@@ -112,6 +112,7 @@
+     GstCaps *desired_caps;
+ 
+     pthread_cond_t event_cond, event_empty_cond;
++    UINT64 read_epoch; /* protected by parser->mutex; invalidates advisory preflight */
+     GstBuffer *buffer;
+     GstMapInfo map_info;
+ 
+@@ -134,9 +135,17 @@
+ static bool caps_is_compressed(GstCaps *caps)
+ {
+     struct wg_format format;
++    const char *name;
+ 
+     if (!caps)
+         return false;
++
++    /* Raw pad capabilities can contain format lists, size ranges and memory
++     * features. Classifying them does not require a fixed GstVideoInfo. */
++    name = gst_structure_get_name(gst_caps_get_structure(caps, 0));
++    if (!strcmp(name, "video/x-raw") || !strcmp(name, "audio/x-raw"))
++        return false;
++
+     wg_format_from_caps(&format, caps);
+ 
+     return format.major_type != WG_MAJOR_TYPE_UNKNOWN
+@@ -286,6 +295,7 @@
+ 
+     pthread_mutex_lock(&parser->mutex);
+     stream->enabled = false;
++    if (!++stream->read_epoch) ++stream->read_epoch;
+     if (stream->desired_caps)
+     {
+         gst_caps_unref(stream->desired_caps);
+@@ -381,6 +391,58 @@
+     return S_OK;
+ }
+ 
++/* Never waits for data. Both copying and releasing occur in one parser lock,
++ * so a Gst FLUSH_START cannot replace the buffer between those operations.
++ * Preflight metadata is advisory only, guarded by epoch on the actual copy. */
++static NTSTATUS wg_parser_stream_try_read(void *args)
++{
++    struct wg_parser_stream_try_read_params *params = args;
++    struct wg_parser_stream *stream = get_stream(params->stream);
++    struct wg_parser *parser = get_parser(params->parser);
++    struct wg_parser_buffer *meta = params->buffer;
++    GstBuffer *buffer;
++    UINT64 expected = params->epoch;
++
++    params->status = WG_PARSER_READ_ERROR;
++    if (!stream || !parser || stream->parser != parser || !meta) return E_INVALIDARG;
++    pthread_mutex_lock(&parser->mutex);
++    params->epoch = stream->read_epoch;
++    if ((expected && expected != stream->read_epoch) || !stream->enabled || stream->flushing)
++        params->status = WG_PARSER_READ_CANCELLED;
++    else if (!(buffer = stream->buffer))
++        params->status = parser->error ? WG_PARSER_READ_ERROR
++                : stream->eos ? WG_PARSER_READ_EOS : WG_PARSER_READ_WOULD_BLOCK;
++    else
++    {
++        memset(meta, 0, sizeof(*meta));
++        if ((meta->has_pts = GST_BUFFER_PTS_IS_VALID(buffer))) meta->pts = GST_BUFFER_PTS(buffer) / 100;
++        if ((meta->has_duration = GST_BUFFER_DURATION_IS_VALID(buffer))) meta->duration = GST_BUFFER_DURATION(buffer) / 100;
++        meta->discontinuity = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DISCONT);
++        meta->preroll = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_LIVE);
++        meta->delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
++        meta->stream = stream->number;
++        if (stream->map_info.size > UINT32_MAX)
++            params->status = WG_PARSER_READ_ERROR;
++        else
++        {
++            meta->size = stream->map_info.size;
++            if (!params->data || params->capacity < meta->size)
++                params->status = WG_PARSER_READ_NEED_BUFFER;
++            else
++            {
++                memcpy(params->data, stream->map_info.data, meta->size);
++                gst_buffer_unmap(buffer, &stream->map_info);
++                gst_buffer_unref(buffer);
++                stream->buffer = NULL;
++                params->status = WG_PARSER_READ_READY;
++                pthread_cond_signal(&stream->event_empty_cond);
++            }
++        }
++    }
++    pthread_mutex_unlock(&parser->mutex);
++    return S_OK;
++}
++
+ static NTSTATUS wg_parser_stream_copy_buffer(void *args)
+ {
+     const struct wg_parser_stream_copy_buffer_params *params = args;
+@@ -652,6 +714,7 @@
+             pthread_mutex_lock(&parser->mutex);
+ 
+             stream->flushing = true;
++            if (!++stream->read_epoch) ++stream->read_epoch;
+             pthread_cond_signal(&stream->event_empty_cond);
+ 
+             if (stream->buffer)
+@@ -858,6 +921,7 @@
+ 
+     stream->parser = parser;
+     stream->number = parser->stream_count;
++    stream->read_epoch = 1;
+     stream->no_more_pads = true;
+     pthread_cond_init(&stream->event_cond, NULL);
+     pthread_cond_init(&stream->event_empty_cond, NULL);
+@@ -1949,6 +2013,7 @@
+     X(wg_muxer_push_sample),
+     X(wg_muxer_read_data),
+     X(wg_muxer_finalize),
++    X(wg_parser_stream_try_read),
+ };
+ 
+ C_ASSERT(ARRAYSIZE(__wine_unix_call_funcs) == unix_wg_funcs_count);
+@@ -2296,6 +2361,27 @@
+     return ret;
+ }
+ 
++static NTSTATUS wow64_wg_parser_stream_try_read(void *args)
++{
++    struct params32
++    {
++        wg_parser_t parser;
++        wg_parser_stream_t stream;
++        UINT64 epoch;
++        UINT32 buffer, data, capacity, status;
++    } *p = args;
++    struct wg_parser_stream_try_read_params params =
++    {
++        .parser = p->parser, .stream = p->stream, .epoch = p->epoch,
++        .buffer = ULongToPtr(p->buffer), .data = ULongToPtr(p->data),
++        .capacity = p->capacity, .status = p->status,
++    };
++    NTSTATUS ret = wg_parser_stream_try_read(&params);
++    p->epoch = params.epoch;
++    p->status = params.status;
++    return ret;
++}
++
+ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
+ {
+ #define X64(name) [unix_ ## name] = wow64_ ## name
+@@ -2346,6 +2432,7 @@
+     X64(wg_muxer_push_sample),
+     X64(wg_muxer_read_data),
+     X(wg_muxer_finalize),
++    X64(wg_parser_stream_try_read),
+ };
+ 
+ C_ASSERT(ARRAYSIZE(__wine_unix_call_wow64_funcs) == unix_wg_funcs_count);
+--- a/dlls/winegstreamer/wg_sample.c
++++ b/dlls/winegstreamer/wg_sample.c
+@@ -17,6 +17,7 @@
+  */
+ 
+ #include "gst_private.h"
++#include "timing_private.h"
+ 
+ #include "wmcodecdsp.h"
+ #include "mfapi.h"
+@@ -52,6 +53,10 @@
+         {
+             IMFSample *sample;
+             IMFMediaBuffer *buffer;
++            IMF2DBuffer2 *write_buffer;
++            BYTE *write_data;
++            struct wg_output_cache *write_cache;
++            BOOL cache_hit;
+         } mf;
+         struct
+         {
+@@ -64,6 +69,60 @@
+     } u;
+ };
+ 
++/* One bounded output scratch allocation, leased until the wg_sample is destroyed.
++ * An outstanding lease never aliases a subsequent output. The owner and each
++ * lease hold refs, so processor destruction cannot free leased storage. */
++struct wg_output_cache
++{
++    LONG refcount;
++    BYTE *data;
++    DWORD capacity;
++    BOOL leased;
++    SRWLOCK lock;
++};
++
++void wg_output_cache_release(struct wg_output_cache *cache)
++{
++    if (!cache || InterlockedDecrement(&cache->refcount)) return;
++    free(cache->data);
++    free(cache);
++}
++
++static BYTE *wg_output_cache_acquire(struct wg_output_cache **owner, DWORD length,
++        struct wg_output_cache **lease, BOOL *hit)
++{
++    struct wg_output_cache *cache;
++    BYTE *data;
++    *lease = NULL;
++    *hit = FALSE;
++    if (!owner) return malloc(length);
++    cache = InterlockedCompareExchangePointer((void * volatile *)owner, NULL, NULL);
++    if (!cache)
++    {
++        struct wg_output_cache *existing;
++        if (!(cache = calloc(1, sizeof(*cache)))) return malloc(length);
++        cache->refcount = 1;
++        existing = InterlockedCompareExchangePointer((void * volatile *)owner, cache, NULL);
++        if (existing) { wg_output_cache_release(cache); cache = existing; }
++    }
++    AcquireSRWLockExclusive(&cache->lock);
++    if (cache->leased) { ReleaseSRWLockExclusive(&cache->lock); return malloc(length); }
++    if (cache->capacity < length)
++    {
++        if (!(data = malloc(length))) { ReleaseSRWLockExclusive(&cache->lock); return NULL; }
++        free(cache->data);
++        cache->data = data;
++        cache->capacity = length;
++    }
++    else *hit = TRUE;
++    cache->leased = TRUE;
++    InterlockedIncrement(&cache->refcount);
++    *lease = cache;
++    data = cache->data;
++    ReleaseSRWLockExclusive(&cache->lock);
++    return data;
++}
++
+ static const struct wg_sample_ops mf_sample_ops;
+ 
+ static inline struct sample *unsafe_mf_from_wg_sample(struct wg_sample *wg_sample)
+@@ -79,7 +138,19 @@
+ 
+     TRACE_(mfplat)("wg_sample %p.\n", wg_sample);
+ 
+-    IMFMediaBuffer_Unlock(sample->u.mf.buffer);
++    if (sample->u.mf.write_buffer)
++    {
++        if (sample->u.mf.write_cache)
++        {
++            AcquireSRWLockExclusive(&sample->u.mf.write_cache->lock);
++            sample->u.mf.write_cache->leased = FALSE;
++            ReleaseSRWLockExclusive(&sample->u.mf.write_cache->lock);
++            wg_output_cache_release(sample->u.mf.write_cache);
++        }
++        else free(sample->u.mf.write_data);
++        IMF2DBuffer2_Release(sample->u.mf.write_buffer);
++    }
++    else IMFMediaBuffer_Unlock(sample->u.mf.buffer);
+     IMFMediaBuffer_Release(sample->u.mf.buffer);
+     IMFSample_Release(sample->u.mf.sample);
+ }
+@@ -120,6 +191,65 @@
+     return hr;
+ }
+ 
++/* A full output frame overwrites the old GPU contents. Avoid IMFMediaBuffer::Lock,
++ * which takes a ReadWrite lock and synchronously downloads that old texture. */
++static HRESULT wg_sample_create_mf_video_output(IMFSample *mf_sample, struct wg_sample **out, struct wg_output_cache **cache)
++{
++    IMFMediaBuffer *buffer;
++    IMF2DBuffer2 *buffer2d = NULL;
++    IMFDXGIBuffer *dxgi = NULL;
++    struct sample *sample;
++    DWORD length;
++    HRESULT hr;
++
++    if (FAILED(hr = IMFSample_ConvertToContiguousBuffer(mf_sample, &buffer))) return hr;
++    if (FAILED(IMFMediaBuffer_QueryInterface(buffer, &IID_IMFDXGIBuffer, (void **)&dxgi)))
++    {
++        IMFMediaBuffer_Release(buffer);
++        return wg_sample_create_mf(mf_sample, out);
++    }
++    IMFDXGIBuffer_Release(dxgi);
++    hr = IMFMediaBuffer_QueryInterface(buffer, &IID_IMF2DBuffer2, (void **)&buffer2d);
++    if (FAILED(hr))
++    {
++        IMFMediaBuffer_Release(buffer);
++        return wg_sample_create_mf(mf_sample, out);
++    }
++    hr = IMF2DBuffer2_GetContiguousLength(buffer2d, &length);
++    if (FAILED(hr) || !length)
++    {
++        IMF2DBuffer2_Release(buffer2d);
++        IMFMediaBuffer_Release(buffer);
++        return FAILED(hr) ? hr : E_INVALIDARG;
++    }
++    if (!(sample = calloc(1, sizeof(*sample)))) hr = E_OUTOFMEMORY;
++    else if (!(sample->u.mf.write_data = wg_output_cache_acquire(cache, length, &sample->u.mf.write_cache, &sample->u.mf.cache_hit))) { free(sample); sample = NULL; hr = E_OUTOFMEMORY; }
++    if (FAILED(hr))
++    {
++        IMF2DBuffer2_Release(buffer2d);
++        IMFMediaBuffer_Release(buffer);
++        return hr;
++    }
++    sample->u.mf.buffer = buffer;
++    sample->u.mf.write_buffer = buffer2d;
++    IMFSample_AddRef((sample->u.mf.sample = mf_sample));
++    sample->wg_sample.data = (UINT_PTR)sample->u.mf.write_data;
++    sample->wg_sample.max_size = length;
++    sample->ops = &mf_sample_ops;
++    *out = &sample->wg_sample;
++    return S_OK;
++}
++
++static HRESULT wg_sample_commit_video_output(struct wg_sample *wg_sample)
++{
++    struct sample *sample = unsafe_mf_from_wg_sample(wg_sample);
++    if (!sample->u.mf.write_buffer) return S_OK;
++    /* Never upload unwritten scratch bytes or pretend that a partial frame is complete. */
++    if (wg_sample->size != wg_sample->max_size || (wg_sample->flags & WG_SAMPLE_FLAG_INCOMPLETE))
++        return E_UNEXPECTED;
++    return IMF2DBuffer2_ContiguousCopyFrom(sample->u.mf.write_buffer, sample->u.mf.write_data, wg_sample->size);
++}
++
+ static const struct wg_sample_ops quartz_sample_ops;
+ 
+ static inline struct sample *unsafe_quartz_from_wg_sample(struct wg_sample *wg_sample)
+@@ -338,25 +468,50 @@
+     return hr;
+ }
+ 
+-HRESULT wg_transform_read_mf(wg_transform_t transform, IMFSample *sample, DWORD *flags, bool *preserve_timestamps)
++HRESULT wg_transform_read_mf_timed(wg_transform_t transform, IMFSample *sample, DWORD *flags, bool *preserve_timestamps, struct wg_read_timing *timing, BOOL write_only, struct wg_output_cache **cache)
+ {
+     struct wg_sample *wg_sample;
+     IMFMediaBuffer *buffer;
+     HRESULT hr;
++    ULONGLONG before = timing ? convert_timing_now() : 0;
+ 
+     TRACE_(mfplat)("transform %#I64x, sample %p, flags %p.\n", transform, sample, flags);
+ 
+-    if (FAILED(hr = wg_sample_create_mf(sample, &wg_sample)))
+-        return hr;
++    hr = write_only ? wg_sample_create_mf_video_output(sample, &wg_sample, cache) : wg_sample_create_mf(sample, &wg_sample);
++    if (timing) timing->wrap += convert_timing_now() - before;
++    if (FAILED(hr)) return hr;
++    if (timing && unsafe_mf_from_wg_sample(wg_sample)->u.mf.write_buffer)
++    {
++        struct sample *wrapped = unsafe_mf_from_wg_sample(wg_sample);
++        ++timing->write_wraps;
++        if (wrapped->u.mf.write_cache)
++        {
++            if (wrapped->u.mf.cache_hit) ++timing->cache_hits;
++            else ++timing->cache_allocs;
++            timing->cache_bytes = wrapped->u.mf.write_cache->capacity;
++        }
++        else ++timing->cache_fallbacks;
++    }
+ 
+     wg_sample->size = 0;
+ 
+-    if (FAILED(hr = wg_transform_read_data(transform, wg_sample)))
++    if (timing) before = convert_timing_now();
++    hr = wg_transform_read_data(transform, wg_sample);
++    if (timing) timing->unixread += convert_timing_now() - before;
++    if (FAILED(hr))
+     {
+         wg_sample_release(wg_sample);
+         return hr;
+     }
+ 
++    if (timing) before = convert_timing_now();
++    if (write_only)
++    {
++        ULONGLONG commit_before = timing ? convert_timing_now() : 0;
++        hr = wg_sample_commit_video_output(wg_sample);
++        if (timing) { timing->commit += convert_timing_now() - commit_before; ++timing->commits; }
++        if (FAILED(hr)) { wg_sample_release(wg_sample); return hr; }
++    }
+     if (wg_sample->flags & WG_SAMPLE_FLAG_INCOMPLETE)
+         *flags |= MFT_OUTPUT_DATA_BUFFER_INCOMPLETE;
+     if (wg_sample->flags & WG_SAMPLE_FLAG_HAS_PTS)
+@@ -377,7 +532,13 @@
+     }
+ 
+     wg_sample_release(wg_sample);
++    if (timing) timing->finish += convert_timing_now() - before;
+     return hr;
++}
++
++HRESULT wg_transform_read_mf(wg_transform_t transform, IMFSample *sample, DWORD *flags, bool *preserve_timestamps)
++{
++    return wg_transform_read_mf_timed(transform, sample, flags, preserve_timestamps, NULL, FALSE, NULL);
+ }
+ 
+ HRESULT wg_transform_push_quartz(wg_transform_t transform, struct wg_sample *wg_sample,

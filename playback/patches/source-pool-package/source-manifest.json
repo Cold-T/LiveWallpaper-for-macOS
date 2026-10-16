@@ -1,0 +1,67 @@
+{
+  "wine_archive_sha256": "f09e8153aa46a581d2b56a5b1363b04832070b9409d9244a68cf482b243ff14a",
+  "wine_tag_commit": "db11d0fe6a169c457e23d007e20404643d067aa8",
+  "files": {
+    "dlls/mfmediaengine/main.c": {
+      "sha256": "8bbd882f6a54fed220a793212e2933089d310f6cde8950102fc4c732d5abd46a",
+      "base_sha256": "c560916a795aa7ca6f111f2a88c19cc92d846e9254cc19f5c4fa34fac891d3b8",
+      "origin": "/private/tmp/lw-wine-loop-timing-src/main.c"
+    },
+    "dlls/mfmediaengine/mediaengine_private.h": {
+      "sha256": "28871e187b07dae494fc1d718a804635b011325f788afae1836599d727666237",
+      "base_sha256": "5bc61817b472fed2598333ebe864d63ddff90288e021c5c6b8dfe44dbf210f0d",
+      "origin": "/private/tmp/lw-wine-loop-timing-src/mediaengine_private.h"
+    },
+    "dlls/mfmediaengine/video_frame_sink.c": {
+      "sha256": "c73157d23ffd294d728c668b5c7c1e7e34ae32b1d90423ec929e0f40ca43505d",
+      "base_sha256": "e7f363ce195034fb6981a173a0901a5eebc9c6860e622628861c929fbee960f3",
+      "origin": "/private/tmp/lw-wine-loop-timing-src/video_frame_sink.c"
+    },
+    "dlls/winegstreamer/gst_private.h": {
+      "sha256": "15e624246b55597d49f18adf4afd9ffb80eddb18ab4041ea00c93a87ef06c664",
+      "base_sha256": "a1e5e754eceb5f5211ae3e8ec7efbd5f8b3af023392492a27ff222fab2657778",
+      "origin": "/private/tmp/lw-wine-mf-fix/dlls/winegstreamer/gst_private.h"
+    },
+    "dlls/winegstreamer/main.c": {
+      "sha256": "13bb6aa94129794dad2e4f728fabe6ae164eb1344a2cb3b7d5633ea045b6142a",
+      "base_sha256": "640c8bf33b240fa73f7955f2a11f2a755c91cb6f03630077de78fc9c8d7c1713",
+      "origin": "/private/tmp/lw-wine-mf-fix/dlls/winegstreamer/main.c"
+    },
+    "dlls/winegstreamer/media_source.c": {
+      "sha256": "46c294299d014b6796351b633dae2aa38dd1408b187087e4cf2c16e3cab2a285",
+      "base_sha256": "1fb6cf46afade1dca5f46009f2b2c60c7121ec3dfdc3afde819631ec0ee5217e",
+      "origin": "/private/tmp/lw-wine-source-pool-src/media_source.c"
+    },
+    "dlls/winegstreamer/source_buffer_private.h": {
+      "sha256": "dd6c670a5651380585bb25db57bc20c686bf822376296ca76563df00d34fcdfb",
+      "base_sha256": null,
+      "origin": "/private/tmp/lw-wine-source-pool-src/source_buffer_private.h"
+    },
+    "dlls/winegstreamer/timing_private.h": {
+      "sha256": "9f4ccb202d9e9b79097095ea47562a13951afe0351631a5d3384cea2ca91a896",
+      "base_sha256": null,
+      "origin": "/private/tmp/lw-wine-output-cache-src/timing_private.h"
+    },
+    "dlls/winegstreamer/unixlib.h": {
+      "sha256": "015c6e07494a162cbb05982eec68e70398bd2706aeef3737aa18cd6bcd044d90",
+      "base_sha256": "1d9021968854276645840da428d9b2ba9207a186b07af320757dafd70d2b964d",
+      "origin": "/private/tmp/lw-wine-mf-fix/dlls/winegstreamer/unixlib.h"
+    },
+    "dlls/winegstreamer/video_processor.c": {
+      "sha256": "10e30dc265211cdf5261c4a6e4e515a26424bd50125339efc166415f124e365b",
+      "base_sha256": "89ac1bd0eb4b1eefc3efc1beb2550bc78f1807fac21c5eba0042d17daf980276",
+      "origin": "/private/tmp/lw-wine-output-cache-src/video_processor.c"
+    },
+    "dlls/winegstreamer/wg_parser.c": {
+      "sha256": "f964a0dc2ab1ad6d1f3984b9d289d79565043870f589224df0dae639ed53e144",
+      "base_sha256": "b733b1dfdc4cce5601bfd584ca4cd22abf2d843780686aaa6653896155bbb797",
+      "origin": "/private/tmp/lw-wine-mf-fix/dlls/winegstreamer/wg_parser.c"
+    },
+    "dlls/winegstreamer/wg_sample.c": {
+      "sha256": "be31f73d26e2bb72c12254dabd2a11a8c635a7b04fc70a88581aa03696f7b929",
+      "base_sha256": "5b258ea31e582f305f572f48372996244af9d801dfd711a45f78e6145952fac5",
+      "origin": "/private/tmp/lw-wine-output-cache-src/wg_sample.c"
+    }
+  },
+  "color_transfer_patch": "color-format-transfer.patch"
+}

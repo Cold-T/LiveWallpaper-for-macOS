@@ -1,0 +1,21 @@
+{
+  "pristine_wine_archive_apply": true,
+  "all12_final_sources_match": true,
+  "files": {
+    "dlls/mfmediaengine/main.c": true,
+    "dlls/mfmediaengine/mediaengine_private.h": true,
+    "dlls/mfmediaengine/video_frame_sink.c": true,
+    "dlls/winegstreamer/gst_private.h": true,
+    "dlls/winegstreamer/main.c": true,
+    "dlls/winegstreamer/media_source.c": true,
+    "dlls/winegstreamer/source_buffer_private.h": true,
+    "dlls/winegstreamer/timing_private.h": true,
+    "dlls/winegstreamer/unixlib.h": true,
+    "dlls/winegstreamer/video_processor.c": true,
+    "dlls/winegstreamer/wg_parser.c": true,
+    "dlls/winegstreamer/wg_sample.c": true
+  },
+  "scratch": "/private/tmp/lw-sourcepool-patchcheck-8knc_klo",
+  "patch_stdout": "patching file 'dlls/mfmediaengine/main.c'\npatching file 'dlls/mfmediaengine/mediaengine_private.h'\npatching file 'dlls/mfmediaengine/video_frame_sink.c'\npatching file 'dlls/winegstreamer/gst_private.h'\npatching file 'dlls/winegstreamer/main.c'\npatching file 'dlls/winegstreamer/media_source.c'\npatching file 'dlls/winegstreamer/source_buffer_private.h'\npatching file 'dlls/winegstreamer/timing_private.h'\npatching file 'dlls/winegstreamer/unixlib.h'\npatching file 'dlls/winegstreamer/video_processor.c'\npatching file 'dlls/winegstreamer/wg_parser.c'\npatching file 'dlls/winegstreamer/wg_sample.c'\n",
+  "fresh_full_build": "Script syntax checked; this whole fresh configure/build script has not been executed. Individual corresponding frozen modules were compiled/linked previously."
+}

@@ -10,7 +10,6 @@ Assets.car
 **/xcuserdata/**
 **/*.xcuserdatad/**
 **.bak
-**.patch
 .DS_Store/
 .DS_Store/**
 BrewReleases
@@ -21,10 +20,6 @@ BrewReleases/**
 .vscode/**
 .DS_Store
 project.yml
-WallpaperEngine.icon/Assets/roller 2.svg
-WallpaperEngine.icon/icon.json
-WallpaperEngine.icon/icon.json
-WallpaperEngine.icon/Assets/roller 2.svg
 /WallpaperEngine.icon
 /LiveWallpaper.icon
 /AppIcon.icon
@@ -45,3 +40,13 @@ userdata/
 userdata/**
 config/
 config/**
+
+# Local Python caches
+__pycache__/
+*.pyc
+
+# Local desktop/window captures used during diagnostics
+/docs/*-windows.json
+# Machine-local historical validation journals
+/docs/wine-validation.json
+/docs/workshop-scene-tests-2026-10-15.json

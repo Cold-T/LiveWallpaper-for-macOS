@@ -26,6 +26,9 @@
 #include <spawn.h>
 #include <unistd.h>
 
+#import "playback/WallpaperProject.h"
+#import "playback/WinePlayback.h"
+
 extern char **environ;
 
 #define THUMBNAIL_QUALITY_FACTOR 0.05f
@@ -41,8 +44,16 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
   return @"LiveWallpaperOriginalDesktopImageUUIDs";
 }
 
+// Retained by both metadata and image-generation callbacks in a thumbnail batch.
+@interface LWThumbnailBatchProgress : NSObject
+@property(nonatomic) NSInteger completedCount;
+@end
+@implementation LWThumbnailBatchProgress
+@end
+
 @implementation LiveWallpaper {
 @private
+  LWWinePlayback *_winePlayback;
   dispatch_queue_t _wallpaperQueue;
   dispatch_queue_t _thumbnailQueue;
   dispatch_semaphore_t _wallpaperSemaphore;
@@ -60,6 +71,9 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 - (instancetype)init {
   self = [super init];
   if (self) {
+    _winePlayback = [LWWinePlayback new];
+    __weak LiveWallpaper *weakSelf = self;
+    _winePlayback.stateChanged = ^{ LiveWallpaper *owner = weakSelf; if (!owner) return; BOOL native = NO; for (const Display &display : displays) if (display.daemon > 1) native = YES; owner.wallpaperRunning = native || owner->_winePlayback.sessions.count > 0; };
     _generatingImages = NO;
     _generatingThumbImages = NO;
     _currentVideoPath = nil;
@@ -80,6 +94,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     usleep(2);
 
     displays = SaveSystem::Load();
+    for (Display &display : displays) display.daemon = 0;
+    ScanDisplays();
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
       
@@ -150,8 +166,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
   for (NSString *fileName in allFiles) {
     NSString *fileExtension = [[fileName pathExtension] lowercaseString];
 
-    if ([fileExtension isEqualToString:@"mp4"] ||
-        [fileExtension isEqualToString:@"mov"]) {
+    if (LWPlayablePath([folderPath stringByAppendingPathComponent:fileName])) {
       NSString *fullPath = [folderPath stringByAppendingPathComponent:fileName];
       [videoFiles addObject:fullPath];
     }
@@ -202,7 +217,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 - (void)handleSpaceChange:(NSNotification *)note {
   CFNotificationCenterPostNotification(
       CFNotificationCenterGetDarwinNotifyCenter(),
-      CFSTR("com.live.wallpaper.spaceChanged"), NULL, NULL, true);
+      CFSTR("uk.coldt.LiveWallpaper.WinePreview.spaceChanged"), NULL, NULL, true);
 }
 
 - (void)awakeHandle:(NSNotification *)note {
@@ -337,8 +352,14 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
   }
 }
 - (void)generateThumbnails {
-  if (!_generatingThumbImages) {
-    [self generateThumbnailsForFolder:[self getFolderPath]
+  [self generateThumbnailsInBackgroundForFolder:[self getFolderPath]];
+}
+
+- (void)generateThumbnailsInBackgroundForFolder:(NSString *)path {
+  NSString *selectedFolder = [path copy];
+  // Keep ownership of the engine and its serial thumbnail queue in ObjC.
+  dispatch_async(_thumbnailQueue, ^{
+    [self generateThumbnailsForFolder:selectedFolder
                        withCompletion:^{
                          dispatch_async(dispatch_get_main_queue(), ^{
                            [[NSNotificationCenter defaultCenter]
@@ -346,7 +367,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
                                              object:nil];
                          });
                        }];
-  }
+  });
 }
 - (void)resetUserData {
   NSString *appDomain = [[NSBundle mainBundle] bundleIdentifier];
@@ -545,7 +566,9 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
                                                                 error:nil];
   if (files.count == 0) {
     NSLog(@"No files found in folder: %@", folderPath);
-    _generatingThumbImages = NO;
+    @synchronized(self) {
+      _generatingThumbImages = NO;
+    }
     if (completion)
       completion();
     return;
@@ -565,20 +588,22 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     NSString *thumbPath =
         [thumbnailCachePath stringByAppendingPathComponent:thumbName];
 
-    BOOL isDir;
-    NSLog(@"THUMB CHECK:\n  filename: %@\n  thumbPath: %@\n  exists: %d isDir: "
-          @"%d",
-          filename, thumbPath,
-          [fileManager fileExistsAtPath:thumbPath isDirectory:&isDir], isDir);
+    BOOL isDir = NO;
+    BOOL exists = [fileManager fileExistsAtPath:thumbPath isDirectory:&isDir];
+    BOOL validImage = exists && !isDir && [[NSImage alloc] initWithContentsOfFile:thumbPath] != nil;
+    NSLog(@"Thumbnail cache: %@ exists=%d directory=%d valid=%d",
+          filename, exists, isDir, validImage);
 
-    if (![fileManager fileExistsAtPath:thumbPath]) {
+    if (!validImage) {
       [filesToProcess addObject:filename];
     }
   }
 
   if (filesToProcess.count == 0) {
     NSLog(@"All thumbnails already exist");
-    _generatingThumbImages = NO;
+    @synchronized(self) {
+      _generatingThumbImages = NO;
+    }
     if (completion)
       completion();
     return;
@@ -587,8 +612,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
   NSLog(@"Processing %lu videos for thumbnails",
         (unsigned long)filesToProcess.count);
 
-  // Use block-scoped variable for counting
-  __block NSInteger completedCount = 0;
+  // The counter must outlive the metadata callback that starts image generation.
+  LWThumbnailBatchProgress *progress = [LWThumbnailBatchProgress new];
   NSInteger totalCount = filesToProcess.count;
 
   for (NSString *filename in filesToProcess) {
@@ -602,8 +627,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
           NSLog(@"Video not found: %@", filePath);
 
           @synchronized(self) {
-            completedCount++;
-            if (completedCount >= totalCount) {
+            progress.completedCount++;
+            if (progress.completedCount >= totalCount) {
               self->_generatingThumbImages = NO;
               if (completion) {
                 dispatch_async(dispatch_get_main_queue(), completion);
@@ -620,7 +645,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
                                [self processThumbnailForAsset:asset
                                                      filename:filename
                                                      videoURL:videoURL
-                                               completedCount:&completedCount
+                                               progress:progress
                                                    totalCount:totalCount
                                                 thumbnailPath:thumbnailCachePath
                                                    completion:completion];
@@ -632,7 +657,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 - (void)processThumbnailForAsset:(AVAsset *)asset
                         filename:(NSString *)filename
                         videoURL:(NSURL *)videoURL
-                  completedCount:(NSInteger *)completedCount
+                  progress:(LWThumbnailBatchProgress *)progress
                       totalCount:(NSInteger)totalCount
                    thumbnailPath:(NSString *)thumbnailPath
                       completion:(void (^)(void))completion {
@@ -650,8 +675,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
           error.localizedDescription);
 
     @synchronized(self) {
-      (*completedCount)++;
-      if (*completedCount >= totalCount) {
+      progress.completedCount++;
+      if (progress.completedCount >= totalCount) {
         self->_generatingThumbImages = NO;
         if (completion) {
           dispatch_async(dispatch_get_main_queue(), completion);
@@ -671,8 +696,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     NSLog(@"No video track for %@", filename);
 
     @synchronized(self) {
-      (*completedCount)++;
-      if (*completedCount >= totalCount) {
+      progress.completedCount++;
+      if (progress.completedCount >= totalCount) {
         self->_generatingThumbImages = NO;
         if (completion) {
           dispatch_async(dispatch_get_main_queue(), completion);
@@ -733,8 +758,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
                              }
 
                              @synchronized(self) {
-                               (*completedCount)++;
-                               if (*completedCount >= totalCount) {
+                               progress.completedCount++;
+                               if (progress.completedCount >= totalCount) {
                                  self->_generatingThumbImages = NO;
                                  if (completion) {
                                    dispatch_async(dispatch_get_main_queue(),
@@ -781,7 +806,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     NSURL *thumbURL = [NSURL fileURLWithPath:thumbPath];
 
     CGImageDestinationRef destination = CGImageDestinationCreateWithURL(
-        (__bridge CFURLRef)thumbURL, kUTTypePNG, 1, NULL);
+        (__bridge CFURLRef)thumbURL, (__bridge CFStringRef)UTTypePNG.identifier, 1, NULL);
 
     if (!destination) {
       NSLog(@"Failed to create CGImageDestination for %@", thumbName);
@@ -965,6 +990,25 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     return;
   }
 
+  NSString *project = LWProjectJSON(videoPath);
+  if (project) {
+    NSArray *targets = displayIDs.count ? displayIDs : [NSScreen.screens valueForKeyPath:@"deviceDescription.NSScreenNumber"];
+    for (NSNumber *number in targets) {
+      NSScreen *screen = [self screenForDisplayID:number.unsignedIntValue];
+      if (!screen) continue;
+      NSError *error = nil;
+      if (![_winePlayback start:project screen:screen error:&error]) {
+        [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:error.localizedDescription ?: @"Playback could not start."];
+        continue;
+      }
+      // Retire the previous native video on this display only after launch succeeds.
+      SetWallpaperDisplay(0, number.unsignedIntValue, std::string(videoPath.UTF8String), "");
+    }
+    BOOL native = NO; for (const Display &display : displays) if (display.daemon > 1) native = YES;
+    self.wallpaperRunning = _winePlayback.sessions.count > 0 || native;
+    return;
+  }
+
   NSString *videoName =
       [[videoPath lastPathComponent] stringByDeletingPathExtension];
   NSString *imageFilename =
@@ -1096,6 +1140,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 - (void)launchDaemonOnScreen:(NSString *)videoPath
                    imagePath:(NSString *)imagePath
                    displayID:(CGDirectDisplayID)displayID {
+  NSString *uuid = [NSString stringWithUTF8String:DisplayUUIDFromID(displayID).c_str()];
+  [_winePlayback stopDisplay:uuid];
   NSString *daemonRelativePath = @"Contents/MacOS/wallpaperdaemon";
   NSString *appPath = [[NSBundle mainBundle] bundlePath];
   NSString *daemonPath =
@@ -1154,28 +1200,16 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 - (void)killAllDaemons {
   [self restoreRememberedDesktopWallpapers];
 
-  NSTask *killTask = [[NSTask alloc] init];
-  killTask.launchPath = @"/usr/bin/killall";
-  killTask.arguments = @[ @"wallpaperdaemon" ];
-  [killTask launch];
-  [killTask waitUntilExit];
+  [_winePlayback stopAll];
 
-  int status = killTask.terminationStatus;
-  if (status != 0) {
-    NSLog(@"No running wallpaperdaemon process found or killall failed");
-  } else {
-    NSLog(@"wallpaperdaemon processes killed");
-  }
-
-  for (pid_t pid : _daemonPIDs) {
-    kill(pid, SIGTERM);
+  for (Display &display : displays) {
+    if (display.daemon > 1) kill(display.daemon, SIGTERM);
+    display.daemon = 0;
   }
   _daemonPIDs.clear();
   self.wallpaperRunning = NO;
 
-  CFNotificationCenterPostNotification(
-      CFNotificationCenterGetDarwinNotifyCenter(),
-      CFSTR("com.live.wallpaper.terminate"), NULL, NULL, true);
+
 }
 
 - (void)checkFolderPath {
@@ -1244,8 +1278,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     for (NSString *fileName in allFiles) {
       NSString *fileExtension = [[fileName pathExtension] lowercaseString];
 
-      if ([fileExtension isEqualToString:@"mp4"] ||
-          [fileExtension isEqualToString:@"mov"]) {
+      if (LWPlayablePath([folderPath stringByAppendingPathComponent:fileName])) {
         NSString *fullPath = [folderPath stringByAppendingPathComponent:fileName];
         [_wallpaperList addObject:fullPath];
           NSLog(@"detected %@", fullPath);
@@ -1258,6 +1291,9 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     }
     
 }
+
+- (BOOL)isPlayableWallpaperPath:(NSString *)path { return LWPlayablePath(path); }
+- (BOOL)isEngineProjectPath:(NSString *)path { return LWProjectJSON(path) != nil; }
 
 - (NSUInteger)availableWallpaperCount {
     return _wallpaperList.count;
@@ -1397,7 +1433,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 
       CFNotificationCenterPostNotification(
           CFNotificationCenterGetDarwinNotifyCenter(),
-          CFSTR("com.live.wallpaper.volumeChanged"), NULL, NULL, true);
+          CFSTR("uk.coldt.LiveWallpaper.WinePreview.volumeChanged"), NULL, NULL, true);
     }
 
 -(void)updateScaleMode:(NSInteger)mode{
@@ -1409,7 +1445,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
     
     CFNotificationCenterPostNotification(
         CFNotificationCenterGetDarwinNotifyCenter(),
-        CFSTR("com.live.wallpaper.scaleModeChanged"), NULL, NULL, true);
+        CFSTR("uk.coldt.LiveWallpaper.WinePreview.scaleModeChanged"), NULL, NULL, true);
 }
 
 

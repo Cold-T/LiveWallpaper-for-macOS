@@ -1,0 +1,66 @@
+--- a/dlls/mfmediaengine/main.c
++++ b/dlls/mfmediaengine/main.c
+@@ -2485,6 +2485,8 @@
+     }
+ }
+ 
++static HRESULT get_d3d11_resource_from_sample(IMFSample *sample, ID3D11Texture2D **resource, UINT *subresource);
++
+ static void media_engine_update_d3d11_frame_surface(ID3D11DeviceContext *context, struct media_engine *engine)
+ {
+     D3D11_TEXTURE2D_DESC surface_desc;
+@@ -2495,6 +2497,36 @@
+         return;
+ 
+     ID3D11Texture2D_GetDesc(engine->video_frame.d3d11.source, &surface_desc);
++
++    /* A GPU sample can populate our format-correct shader source without
++     * downloading the frame through IMFMediaBuffer::Lock. Never copy raw
++     * pixels between different channel layouts. */
++    {
++        ID3D11Texture2D *texture;
++        UINT subresource;
++        if (SUCCEEDED(get_d3d11_resource_from_sample(sample, &texture, &subresource)))
++        {
++            D3D11_TEXTURE2D_DESC desc;
++            ID3D11Device *sample_device, *context_device;
++            BOOL copied = FALSE;
++            ID3D11Texture2D_GetDesc(texture, &desc);
++            ID3D11Texture2D_GetDevice(texture, &sample_device);
++            ID3D11DeviceContext_GetDevice(context, &context_device);
++            if (sample_device == context_device && !subresource && desc.MipLevels == 1 && desc.ArraySize == 1
++                    && desc.Format == surface_desc.Format && desc.Width == surface_desc.Width
++                    && desc.Height == surface_desc.Height && desc.SampleDesc.Count == surface_desc.SampleDesc.Count
++                    && desc.SampleDesc.Quality == surface_desc.SampleDesc.Quality)
++            {
++                ID3D11DeviceContext_CopySubresourceRegion(context, (ID3D11Resource *)engine->video_frame.d3d11.source,
++                        0, 0, 0, 0, (ID3D11Resource *)texture, subresource, NULL);
++                copied = TRUE;
++            }
++            ID3D11Device_Release(sample_device);
++            ID3D11Device_Release(context_device);
++            ID3D11Texture2D_Release(texture);
++            if (copied) { IMFSample_Release(sample); return; }
++        }
++    }
+ 
+     switch (surface_desc.Format)
+     {
+@@ -2581,6 +2613,17 @@
+ 
+     ID3D11Texture2D_GetDesc(src_texture, &src_desc);
+     ID3D11Texture2D_GetDesc(dst_texture, &dst_desc);
++
++    /* CopySubresourceRegion copies bytes, not colors. In particular BGRA
++     * decoded samples cannot be copied into an RGBA renderer target. Let the
++     * existing textured draw perform the format-aware conversion instead. */
++    if (src_desc.Format != dst_desc.Format)
++    {
++        TRACE("Converting video texture format %u to %u with shader transfer.\n", (unsigned)src_desc.Format, (unsigned)dst_desc.Format);
++        ID3D11Texture2D_Release(src_texture);
++        return MF_E_INVALIDMEDIATYPE;
++    }
++
+ 
+     src_box.left = src_rect->left * src_desc.Width;
+     src_box.top = src_rect->top * src_desc.Height;

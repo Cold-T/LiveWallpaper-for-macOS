@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "application_name": "Livewallpaper for macOS",
+  "minimum_macos": "14.6",
+  "architecture": "arm64",
+  "archive": "Livewallpaper-for-macOS-v2.0.0.zip",
+  "sha256": "4ac3b45b7ac26a5fac1de1419230367f133c21ec808dcb3b3912d7a5fa9d1b4e",
+  "bytes": 6146000,
+  "signature": "ad-hoc; codesign --verify --deep --strict passed",
+  "zip_crc": "passed",
+  "python_tests_passed": 37,
+  "prior_audit_lifecycle_sanitized_checks": 20,
+  "commercial_engine_included": false,
+  "complete_wine_runtime_included": false,
+  "wallpapers_included": false,
+  "runtime_tested_during_release_build": false
+}

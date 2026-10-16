@@ -771,7 +771,7 @@ static void terminateWallpaperDaemonCallback(CFNotificationCenterRef center,
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
     allowedBundleIDs = [NSSet
-        setWithArray:@[ @"com.apple.finder", @"uk.coldt.LiveWallpaper" ]];
+        setWithArray:@[ @"com.apple.finder", @"uk.coldt.LiveWallpaper.WinePreview" ]];
   });
 
   return [allowedBundleIDs containsObject:front.bundleIdentifier];
@@ -972,7 +972,7 @@ int main(int argc, const char *argv[]) {
     [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
     [NSApp finishLaunching];
 
-    if (argc < 4) {
+    if (argc < 5) {
       NSLog(@"Usage: %s <video.mp4> <frame_output.png> <volume> <scale_mode> "
             @"<display_uuid(optional)>",
             argv[0]);
@@ -1011,31 +1011,31 @@ int main(int argc, const char *argv[]) {
     CFNotificationCenterAddObserver(
         CFNotificationCenterGetDarwinNotifyCenter(),
         (__bridge const void *)(daemon), VolumeChangedCallback,
-        CFSTR("com.live.wallpaper.volumeChanged"), NULL,
+        CFSTR("uk.coldt.LiveWallpaper.WinePreview.volumeChanged"), NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately);
 
     CFNotificationCenterAddObserver(
         CFNotificationCenterGetDarwinNotifyCenter(),
         (__bridge const void *)(daemon), AutoPauseChangedCallback,
-        CFSTR("com.live.wallpaper.autoPauseChanged"), NULL,
+        CFSTR("uk.coldt.LiveWallpaper.WinePreview.autoPauseChanged"), NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately);
 
     CFNotificationCenterAddObserver(
         CFNotificationCenterGetDarwinNotifyCenter(),
         (__bridge const void *)(daemon), SpaceChangeCallback,
-        CFSTR("com.live.wallpaper.spaceChanged"), NULL,
+        CFSTR("uk.coldt.LiveWallpaper.WinePreview.spaceChanged"), NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately);
 
     CFNotificationCenterAddObserver(
         CFNotificationCenterGetDarwinNotifyCenter(),
         (__bridge const void *)daemon, terminateWallpaperDaemonCallback,
-        CFSTR("com.live.wallpaper.terminate"), NULL,
+        CFSTR("uk.coldt.LiveWallpaper.WinePreview.terminate"), NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately);
 
     CFNotificationCenterAddObserver(
         CFNotificationCenterGetDarwinNotifyCenter(),
         (__bridge const void *)daemon, scaleModeChangeCallback,
-        CFSTR("com.live.wallpaper.scaleModeChanged"), NULL,
+        CFSTR("uk.coldt.LiveWallpaper.WinePreview.scaleModeChanged"), NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately);
 
     [[NSRunLoop mainRunLoop] run];

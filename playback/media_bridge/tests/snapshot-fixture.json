@@ -1,0 +1,11 @@
+{
+  "bundleIdentifier": "fixture.music.example",
+  "title": "测试音乐 🎵",
+  "artist": "Fixture artist",
+  "album": "Fixture album",
+  "state": "playing",
+  "durationSeconds": 240.5,
+  "positionSeconds": 12.25,
+  "observedUnixSeconds": 1700000000,
+  "capabilities": {}
+}

@@ -23,7 +23,7 @@
 
 static std::string configPath() {
   const char *home = getenv("HOME");
-  return std::string(home) + "/Library/Preferences/LiveWallpaper.yaml";
+  return std::string(home) + "/Library/Preferences/LiveWallpaper-Wine.yaml";
 }
 
 // ------------------------

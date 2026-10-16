@@ -26,9 +26,11 @@
 #import <Foundation/Foundation.h>
 #import <QuartzCore/QuartzCore.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#ifdef __cplusplus
 #include <list>
 #include <string>
 #include "DisplayManager.h"
+#endif
 
 
 
@@ -53,6 +55,8 @@
 - (NSString *)staticWallpaperCachePath;
 
 - (void)generateThumbnails;
+- (void)generateThumbnailsInBackgroundForFolder:(NSString *)folderPath
+    NS_SWIFT_NAME(generateThumbnailsInBackground(forFolder:));
 
 - (void)clearCache;
 - (void)resetUserData;
@@ -86,13 +90,14 @@
 
 -(BOOL)isFirstLaunch;
 
+- (BOOL)isPlayableWallpaperPath:(NSString *)path;
+- (BOOL)isEngineProjectPath:(NSString *)path;
 - (void)checkWallpapers;
 - (NSUInteger)availableWallpaperCount;
 
 -(void) nextWallpaper NS_SWIFT_NAME(nextWallpaper());
 -(void) startLastWallpaper NS_SWIFT_NAME(startLastWallpaper());
 
--(void) startPlaylist;
 - (void)startWallpaperRotation NS_SWIFT_NAME(startWallpaperRotation());
 - (void)stopWallpaperRotation NS_SWIFT_NAME(stopWallpaperRotation());
 
@@ -103,7 +108,9 @@
 @property(nonatomic, assign) BOOL generatingThumbImages;
 @property(nonatomic, assign, getter=isWallpaperRunning) BOOL wallpaperRunning;
 @property(nonatomic, strong) NSString *currentVideoPath;
+#ifdef __cplusplus
 @property(nonatomic, assign) std::list<pid_t> daemonPIDs;
+#endif
 @property(nonatomic, strong) NSMutableArray<NSString* >* wallpaperList;
 @property(assign) int currentWallpaper;
 @property (nonatomic, strong) NSTimer *wallpaperTimer;

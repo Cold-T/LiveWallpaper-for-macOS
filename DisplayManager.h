@@ -177,8 +177,8 @@ inline bool KillProcessByPID(pid_t pid) {
 
 struct Display {
 public:
-  pid_t daemon;
-  CGDirectDisplayID screen;
+  pid_t daemon = 0;
+  CGDirectDisplayID screen = 0;
   std::string uuid;
   std::string videoPath;
   std::string framePath;

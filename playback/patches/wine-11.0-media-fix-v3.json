@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "name": "Wine11 nonblocking media source + MediaEngine loop v3",
+  "status": "candidate; timing and final controls still require acceptance",
+  "modules": {
+    "winegstreamer.dll": "a022ef0643aaf78d4eec35517d280e2664526b9c5e95f7a3224d91cc765850df",
+    "winegstreamer.so": "d4e6e00c874ceb0f89ccabd3691c508499c443daa23979ef976a0a98e0e9d84a",
+    "mfmediaengine.dll": "2494d7755159acf4a25ed59fd8175a62e4c94b4123594a57e65f5ab61a8c3560"
+  },
+  "public_source": {
+    "wine_tag": "wine-11.0",
+    "commit": "db11d0fe6a169c457e23d007e20404643d067aa8",
+    "unix_call_count": 38,
+    "appended_try_read_slot": 37
+  },
+  "scope": "Exact component bytes are coupled; this receipt is not a vendor ABI or visual-equivalence certificate."
+}

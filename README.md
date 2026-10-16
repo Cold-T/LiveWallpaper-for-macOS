@@ -1,5 +1,7 @@
+> Wine playback branch based on v1.1.1, retaining its management, download and menu bar UI. See the [setup, build and limitations guide (Chinese)](docs/wine-playback.zh-CN.md).
 
-# LiveWallpaper App for macOS 14+
+
+# Livewallpaper for macOS
 
 **Languages:** English | [简体中文](README.zh-Hans.md)
 
@@ -9,7 +11,7 @@ LiveWallpaper is an open-source live wallpaper app for macOS 14+.
 
 ## Purpose
 
-The goal is simple: make video wallpapers feel practical on macOS. The app focuses on local video wallpapers, menu bar controls, multi-display handling, and importing compatible video items from Steam Wallpaper Engine Workshop.
+The goal is simple: make video wallpapers feel practical on macOS. This branch combines native local video playback with original Wallpaper Engine playback through Wine, while retaining the v1.1.1 management and download UI.
 
 This project is based on the release source of [thusvill/LiveWallpaperMacOS](https://github.com/thusvill/LiveWallpaperMacOS), then adjusted for the current SwiftUI app, status bar workflow, and Workshop import features.
 
@@ -17,61 +19,34 @@ LiveWallpaper is not affiliated with, endorsed by, or sponsored by Wallpaper Eng
 
 ## Workshop import
 
-LiveWallpaper can use `steamcmd` to download a Steam Wallpaper Engine Workshop item, then import a directly available `.mp4` or `.mov` video into the local wallpaper folder.
+Workshop downloads retain the complete project through a `.weproject` library entry. Scene / Web / Video projects route to the original engine; standalone `.mp4` / `.mov` files use the native player. Scene playback has been tested on hardware; Web / Video project coverage remains limited. Application wallpapers are not launched automatically.
 
-Only video wallpapers are supported right now. `scene.pkg`, web wallpapers, application wallpapers, and other Wallpaper Engine project types are not supported yet.
+Workshop downloads require Python, SteamCMD and your own Steam login. These download dependencies are not all bundled.
 
 Use Workshop content only through your own Steam account and only when you have the right to access it. LiveWallpaper does not include, host, or redistribute Workshop content; users are responsible for complying with Steam's terms and each Workshop item's license or creator permissions.
 
-## Installation
+## Install v2.0.0
 
-Download the latest `LiveWallpaper.dmg` from [Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases), open it, and move `LiveWallpaper.app` to `Applications`.
+Download `Livewallpaper-for-macOS-v2.0.0.zip` from the [v2.0.0 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0), extract it, and move `Livewallpaper for macOS.app` into Applications. Requires Apple Silicon and macOS 14.6 or later. The app is ad-hoc signed and is not notarized by Apple.
+
+The public package contains the frontend, native helper, playback adapters and selected Wine media patch sources. It does not include the commercial Wallpaper Engine, a complete Wine/DXMT runtime or wallpapers. Standalone MP4/MOV files work directly. Scene/Web projects require your own engine installation and a prepared external compatibility runtime, selected in Settings. See the [runtime guide](docs/wine-playback.zh-CN.md).
+
+Workshop downloads additionally require Python, SteamCMD and your own Steam login. Earlier local personal bundles are separate builds and are not this public download.
 
 ## Build from source
-- macOS 14+
-- git
-- Xcode
 
-Run:
+Requires macOS, Python 3, Xcode and Apple Command Line Tools with the Swift compiler, and the yaml-cpp submodule. From this checkout:
 
 ```sh
-git clone https://github.com/Cold-T/LiveWallpaper-for-macOS.git
-cd LiveWallpaper
-xcodebuild -project LiveWallpaper.xcodeproj -scheme LiveWallpaper -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+git submodule update --init --recursive
+python3 tools/build_wine_preview.py
 ```
 
-## Guide for DMG Installation
+This builds the frontend preview without downloading or bundling the Windows engine. See the [integration guide](docs/wine-playback.zh-CN.md) for runtime preparation and personal packaging.
 
-> [!IMPORTANT]
-> ## If macOS says “LiveWallpaper.app” is damaged and cannot be opened
-> This release is not notarized, so Gatekeeper may block the first launch.
-> After moving the app to `Applications`, run:
-> 
-> `xattr -d com.apple.quarantine /Applications/LiveWallpaper.app` 
+## Usage
 
-Click the "Show in Finder" button to open the wallpaper folder, then place wallpapers in it.
-
-> [!NOTE]
-> Make sure the selected folder path doesn't include spaces.
->
-> File names should avoid extra dots except the dot before the extension.
-> 
-> ## Eg:
-> 
->  - file.1920x1080.mp4 ❌ ('.'s > 1)
-> 
->  - file-1920x1080.mp4 ✅ ('.'s = 1)
-
-> [!NOTE]
-> Workshop import and playback currently support video items only: `.mp4` and `.mov`.
-
-> https://github.com/user-attachments/assets/3d82e07d-b6b9-4a7d-b6de-5dd05dff3128
-
-## Bug reports
-
-Post bugs with result of following command.
-
- `/Applications/LiveWallpaper.app/Contents/MacOS/LiveWallpaper` 
+Select a wallpaper folder in Settings, then click a thumbnail to play it on the selected display. Use the menu bar to stop, switch wallpapers or reopen the main window. Folder and file names may contain spaces.
 
 ## Gallery
 
@@ -93,23 +68,8 @@ Post bugs with result of following command.
 > ![p3](./asset/preformance3.png)
 
 
-<!-- ## Gallery
-> <img width="185" height="134" alt="Screenshot 2025-11-30 at 1 52 01 PM" src="https://github.com/user-attachments/assets/0c91fb29-e729-485b-8f93-7080aed68881" />
-> <img width="185" height="134" alt="Screenshot 2025-11-30 at 1 51 53 PM" src="https://github.com/user-attachments/assets/7848d2fd-8cc4-4271-a4c0-2868bdf00422" />
- 
 
 
-
-> ![Screenshot 2025-05-15 at 6 46 35 AM](https://github.com/user-attachments/assets/167b0c08-454f-4d53-9e65-8798aed6459f)
-
-> <img width="2560" height="1600" alt="Screenshot 2025-11-30 at 1 52 34 PM" src="https://github.com/user-attachments/assets/79a24ed8-cc5a-4246-87d0-9c93e04766f2" />
-
-> <img width="2560" height="1600" alt="Screenshot 2025-11-30 at 1 54 35 PM" src="https://github.com/user-attachments/assets/10466b02-77d5-4814-9fb7-a865e62a41ba" />
-
- 
-
-> https://github.com/user-attachments/assets/748c7078-1f99-4182-876f-08aa59d2bc63 -->
- 
 
 ## License
 

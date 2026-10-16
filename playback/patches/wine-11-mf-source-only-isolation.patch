@@ -1,0 +1,493 @@
+--- a/dlls/winegstreamer/Makefile.in
++++ b/dlls/winegstreamer/Makefile.in
+@@ -1,6 +1,6 @@
+-MODULE    = winegstreamer.dll
+-UNIXLIB   = winegstreamer.so
+-IMPORTLIB = winegstreamer
++MODULE    = lwwgsource.dll
++UNIXLIB   = lwwgsource.so
++IMPORTLIB = lwwgsource
+ IMPORTS   = strmbase ole32 oleaut32 msdmo msvcrt user32
+ DELAYIMPORTS = mfplat mf
+ UNIX_CFLAGS  = $(GSTREAMER_CFLAGS)
+@@ -16,7 +16,6 @@
+ 	quartz_parser.c \
+ 	quartz_transform.c \
+ 	resampler.c \
+-	rsrc.rc \
+ 	unixlib.c \
+ 	video_decoder.c \
+ 	video_encoder.c \
+@@ -28,6 +27,5 @@
+ 	wg_parser.c \
+ 	wg_sample.c \
+ 	wg_transform.c \
+-	winegstreamer_classes.idl \
+ 	wm_reader.c \
+ 	wma_decoder.c
+--- /dev/null
++++ b/dlls/winegstreamer/lwwgsource.spec
+@@ -0,0 +1,2 @@
++@ stdcall -private DllCanUnloadNow()
++@ stdcall -private DllGetClassObject(ptr ptr ptr)
+--- a/dlls/winegstreamer/main.c
++++ b/dlls/winegstreamer/main.c
+@@ -999,64 +999,15 @@
+ static struct class_factory mp3_sink_class_factory_cf = {{&class_factory_vtbl}, mp3_sink_class_factory_create};
+ static struct class_factory mpeg4_sink_class_factory_cf = {{&class_factory_vtbl}, mpeg4_sink_class_factory_create};
+ 
++/* Diagnostic source-only class boundary. Keep vendor decoder/processor COM identities. */
+ HRESULT WINAPI DllGetClassObject(REFCLSID clsid, REFIID iid, void **out)
+ {
+-    static const GUID CLSID_wg_avi_splitter = {0x272bfbfb,0x50d0,0x4078,{0xb6,0x00,0x1e,0x95,0x9c,0x30,0x13,0x37}};
+-    static const GUID CLSID_wg_color_converter = {0xf47e2da5,0xe370,0x47b7,{0x90,0x3a,0x07,0x8d,0xdd,0x45,0xa5,0xcc}};
+-    static const GUID CLSID_wg_mp3_sink_factory = {0x1f302877,0xaaab,0x40a3,{0xb9,0xe0,0x9f,0x48,0xda,0xf3,0x5b,0xc8}};
+-    static const GUID CLSID_wg_mpeg4_sink_factory = {0x5d5407d9,0xc6ca,0x4770,{0xa7,0xcc,0x27,0xc0,0xcb,0x8a,0x76,0x27}};
+-    static const GUID CLSID_wg_mpeg_audio_decoder = {0xc9f285f8,0x4380,0x4121,{0x97,0x1f,0x49,0xa9,0x53,0x16,0xc2,0x7b}};
+-    static const GUID CLSID_wg_mpeg_video_decoder = {0x5ed2e5f6,0xbf3e,0x4180,{0x83,0xa4,0x48,0x47,0xcc,0x5b,0x4e,0xa3}};
+-    static const GUID CLSID_wg_resampler = {0x92f35e78,0x15a5,0x486b,{0x88,0x8e,0x57,0x5f,0x99,0x65,0x1c,0xe2}};
+-    static const GUID CLSID_wg_wma_decoder = {0x5b4d4e54,0x0620,0x4cf9,{0x94,0xae,0x78,0x23,0x96,0x5c,0x28,0xb6}};
+-    static const GUID CLSID_wg_wmv_decoder = {0x62ee5ddb,0x4f52,0x48e2,{0x89,0x28,0x78,0x7b,0x02,0x53,0xa0,0xbc}};
+-    static const GUID CLSID_wg_mp3_decoder = {0x84cd8e3e,0xb221,0x434a,{0x88,0x82,0x9d,0x6c,0x8d,0xf4,0x90,0xe1}};
+-    static const GUID CLSID_wg_mpeg1_splitter = {0xa8edbf98,0x2442,0x42c5,{0x85,0xa1,0xab,0x05,0xa5,0x80,0xdf,0x53}};
+-    static const GUID CLSID_wg_wave_parser = {0x3f839ec7,0x5ea6,0x49e1,{0x80,0xc2,0x1e,0xa3,0x00,0xf8,0xb0,0xe0}};
+-    struct class_factory *factory;
+-    HRESULT hr;
+-
+-    TRACE("clsid %s, iid %s, out %p.\n", debugstr_guid(clsid), debugstr_guid(iid), out);
+-
+-    if (!init_gstreamer())
+-        return CLASS_E_CLASSNOTAVAILABLE;
+-
+-    if (SUCCEEDED(hr = mfplat_get_class_object(clsid, iid, out)))
+-        return hr;
+-
+-    if (IsEqualGUID(clsid, &CLSID_wg_avi_splitter))
+-        factory = &avi_splitter_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_decodebin_parser))
+-        factory = &decodebin_parser_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_mpeg_audio_decoder))
+-        factory = &mpeg_audio_codec_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_mpeg_video_decoder))
+-        factory = &mpeg_video_codec_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_mp3_decoder))
+-        factory = &mpeg_layer3_decoder_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_mpeg1_splitter))
+-        factory = &mpeg_splitter_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_wave_parser))
+-        factory = &wave_parser_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_wma_decoder))
+-        factory = &wma_decoder_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_wmv_decoder))
+-        factory = &wmv_decoder_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_resampler))
+-        factory = &resampler_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_color_converter))
+-        factory = &color_convert_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_mp3_sink_factory))
+-        factory = &mp3_sink_class_factory_cf;
+-    else if (IsEqualGUID(clsid, &CLSID_wg_mpeg4_sink_factory))
+-        factory = &mpeg4_sink_class_factory_cf;
+-    else
+-    {
+-        FIXME("%s not implemented, returning CLASS_E_CLASSNOTAVAILABLE.\n", debugstr_guid(clsid));
+-        return CLASS_E_CLASSNOTAVAILABLE;
+-    }
+-
+-    return IClassFactory_QueryInterface(&factory->IClassFactory_iface, iid, out);
++    static const GUID source_clsid = {0x317df618,0x5e5a,0x468a,{0x9f,0x15,0xd8,0x27,0xa9,0xa0,0x81,0x62}};
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!IsEqualGUID(clsid, &source_clsid)) return CLASS_E_CLASSNOTAVAILABLE;
++    if (!init_gstreamer()) return CLASS_E_CLASSNOTAVAILABLE;
++    return mfplat_get_class_object(clsid, iid, out);
+ }
+ 
+ static BOOL CALLBACK init_gstreamer_proc(INIT_ONCE *once, void *param, void **ctx)
+--- a/dlls/winegstreamer/media_source.c
++++ b/dlls/winegstreamer/media_source.c
+@@ -840,7 +840,8 @@
+     if (FAILED(hr = MFCreateMemoryBuffer(meta.size, &buffer))) return hr;
+     if (FAILED(hr = IMFMediaBuffer_Lock(buffer, &data, NULL, NULL))) goto out;
+     status = wg_parser_stream_try_read(source->wg_parser, stream->wg_stream, &epoch, &meta, data, meta.size);
+-    IMFMediaBuffer_Unlock(buffer);
++    hr = IMFMediaBuffer_Unlock(buffer);
++    if (FAILED(hr)) goto out;
+     if (status != WG_PARSER_READ_READY)
+     {
+         if (status == WG_PARSER_READ_ERROR) hr = E_UNEXPECTED;
+--- a/dlls/winegstreamer/mfplat.c
++++ b/dlls/winegstreamer/mfplat.c
+@@ -133,11 +133,7 @@
+ }
+ class_objects[] =
+ {
+-    { &CLSID_wg_video_processor, &video_processor_create },
+     { &CLSID_GStreamerByteStreamHandler, &gstreamer_byte_stream_handler_create },
+-    { &CLSID_wg_aac_decoder, &aac_decoder_create },
+-    { &CLSID_wg_h264_decoder, &h264_decoder_create },
+-    { &CLSID_wg_h264_encoder, &h264_encoder_create },
+ };
+ 
+ HRESULT mfplat_get_class_object(REFCLSID rclsid, REFIID riid, void **obj)
+--- a/dlls/winegstreamer/unix_private.h
++++ b/dlls/winegstreamer/unix_private.h
+@@ -110,6 +110,6 @@
+ extern void wg_allocator_release_sample(GstAllocator *allocator, struct wg_sample *sample,
+         bool discard_data);
+ 
+-extern gboolean gst_element_register_winegstreamerstepper(GstPlugin *plugin);
++extern gboolean gst_element_register_lwwgsourcestepper(GstPlugin *plugin);
+ 
+ #endif /* __WINE_WINEGSTREAMER_UNIX_PRIVATE_H */
+--- a/dlls/winegstreamer/unixlib.c
++++ b/dlls/winegstreamer/unixlib.c
+@@ -301,8 +301,7 @@
+     GST_INFO("GStreamer library version %s; wine built with %d.%d.%d.",
+             gst_version_string(), GST_VERSION_MAJOR, GST_VERSION_MINOR, GST_VERSION_MICRO);
+ 
+-    if (!gst_element_register_winegstreamerstepper(NULL))
+-        GST_ERROR("Failed to register the stepper element");
++    /* Source-only parser never uses the stepper; vendor owns its registration. */
+ 
+     return STATUS_SUCCESS;
+ }
+--- a/dlls/winegstreamer/wg_allocator.c
++++ b/dlls/winegstreamer/wg_allocator.c
+@@ -57,14 +57,14 @@
+     struct list memory_list;
+ 
+     struct wg_sample *next_sample;
+-} WgAllocator;
++} LwSourceAllocator;
+ 
+ typedef struct
+ {
+     GstAllocatorClass parent_class;
+-} WgAllocatorClass;
+-
+-G_DEFINE_TYPE(WgAllocator, wg_allocator, GST_TYPE_ALLOCATOR);
++} LwSourceAllocatorClass;
++
++G_DEFINE_TYPE(LwSourceAllocator, wg_allocator, GST_TYPE_ALLOCATOR);
+ 
+ static void *get_unix_memory_data(WgMemory *memory)
+ {
+@@ -79,7 +79,7 @@
+     return memory->unix_map_info.data;
+ }
+ 
+-static void release_memory_sample(WgAllocator *allocator, WgMemory *memory, bool discard_data)
++static void release_memory_sample(LwSourceAllocator *allocator, WgMemory *memory, bool discard_data)
+ {
+     struct wg_sample *sample;
+ 
+@@ -105,7 +105,7 @@
+ 
+ static gpointer wg_allocator_map(GstMemory *gst_memory, GstMapInfo *info, gsize maxsize)
+ {
+-    WgAllocator *allocator = (WgAllocator *)gst_memory->allocator;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)gst_memory->allocator;
+     WgMemory *memory = (WgMemory *)gst_memory;
+ 
+     if (gst_memory->parent)
+@@ -133,7 +133,7 @@
+ 
+ static void wg_allocator_unmap(GstMemory *gst_memory, GstMapInfo *info)
+ {
+-    WgAllocator *allocator = (WgAllocator *)gst_memory->allocator;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)gst_memory->allocator;
+     WgMemory *memory = (WgMemory *)gst_memory;
+ 
+     if (gst_memory->parent)
+@@ -152,7 +152,7 @@
+     pthread_mutex_unlock(&allocator->mutex);
+ }
+ 
+-static void wg_allocator_init(WgAllocator *allocator)
++static void wg_allocator_init(LwSourceAllocator *allocator)
+ {
+     GST_LOG("allocator %p", allocator);
+ 
+@@ -170,7 +170,7 @@
+ 
+ static void wg_allocator_finalize(GObject *object)
+ {
+-    WgAllocator *allocator = (WgAllocator *)object;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)object;
+ 
+     GST_LOG("allocator %p", allocator);
+ 
+@@ -183,7 +183,7 @@
+ static GstMemory *wg_allocator_alloc(GstAllocator *gst_allocator, gsize size,
+         GstAllocationParams *params)
+ {
+-    WgAllocator *allocator = (WgAllocator *)gst_allocator;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)gst_allocator;
+     WgMemory *memory;
+ 
+     GST_LOG("allocator %p, size %#zx, params %p", allocator, size, params);
+@@ -211,7 +211,7 @@
+ 
+ static void wg_allocator_free(GstAllocator *gst_allocator, GstMemory *gst_memory)
+ {
+-    WgAllocator *allocator = (WgAllocator *)gst_allocator;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)gst_allocator;
+     WgMemory *memory = (WgMemory *)gst_memory;
+ 
+     GST_LOG("allocator %p, memory %p", allocator, memory);
+@@ -234,7 +234,7 @@
+     g_slice_free(WgMemory, memory);
+ }
+ 
+-static void wg_allocator_class_init(WgAllocatorClass *klass)
++static void wg_allocator_class_init(LwSourceAllocatorClass *klass)
+ {
+     GstAllocatorClass *parent_class = (GstAllocatorClass *)klass;
+     GObjectClass *root_class = (GObjectClass *)klass;
+@@ -248,7 +248,7 @@
+ 
+ GstAllocator *wg_allocator_create(void)
+ {
+-    WgAllocator *allocator;
++    LwSourceAllocator *allocator;
+ 
+     if (!(allocator = g_object_new(wg_allocator_get_type(), NULL)))
+         return NULL;
+@@ -258,7 +258,7 @@
+ 
+ void wg_allocator_destroy(GstAllocator *gst_allocator)
+ {
+-    WgAllocator *allocator = (WgAllocator *)gst_allocator;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)gst_allocator;
+     WgMemory *memory;
+ 
+     GST_LOG("allocator %p", allocator);
+@@ -273,7 +273,7 @@
+     GST_INFO("Destroyed buffer allocator %p", allocator);
+ }
+ 
+-static WgMemory *find_sample_memory(WgAllocator *allocator, struct wg_sample *sample)
++static WgMemory *find_sample_memory(LwSourceAllocator *allocator, struct wg_sample *sample)
+ {
+     WgMemory *memory;
+ 
+@@ -286,7 +286,7 @@
+ 
+ void wg_allocator_provide_sample(GstAllocator *gst_allocator, struct wg_sample *sample)
+ {
+-    WgAllocator *allocator = (WgAllocator *)gst_allocator;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)gst_allocator;
+     struct wg_sample *previous;
+ 
+     GST_LOG("allocator %p, sample %p", allocator, sample);
+@@ -306,7 +306,7 @@
+ void wg_allocator_release_sample(GstAllocator *gst_allocator, struct wg_sample *sample,
+         bool discard_data)
+ {
+-    WgAllocator *allocator = (WgAllocator *)gst_allocator;
++    LwSourceAllocator *allocator = (LwSourceAllocator *)gst_allocator;
+     WgMemory *memory;
+ 
+     GST_LOG("allocator %p, sample %p, discard_data %u", allocator, sample, discard_data);
+--- a/dlls/winegstreamer/wg_transform.c
++++ b/dlls/winegstreamer/wg_transform.c
+@@ -46,39 +46,39 @@
+  * out the src pad, it keeps them in a internal queue until the step function
+  * is called manually.
+  */
+-typedef struct _WgStepper
++typedef struct _LwSourceStepper
+ {
+     GstElement element;
+     GstPad *src, *sink;
+     GstAtomicQueue *fifo;
+-} WgStepper;
+-
+-typedef struct _WgStepperClass
++} LwSourceStepper;
++
++typedef struct _LwSourceStepperClass
+ {
+     GstElementClass parent_class;
+-} WgStepperClass;
++} LwSourceStepperClass;
+ 
+ #define GST_TYPE_WG_STEPPER (wg_stepper_get_type())
+-#define WG_STEPPER(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_WG_STEPPER, WgStepper))
+-#define GST_WG_STEPPER_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_WG_STEPPER,WgStepperClass))
++#define WG_STEPPER(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_WG_STEPPER, LwSourceStepper))
++#define GST_WG_STEPPER_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_WG_STEPPER,LwSourceStepperClass))
+ #define GST_IS_WG_STEPPER(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_WG_STEPPER))
+ #define GST_IS_WG_STEPPER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_WG_STEPPER))
+ 
+-G_DEFINE_TYPE (WgStepper, wg_stepper, GST_TYPE_ELEMENT);
+-gboolean gst_element_register_winegstreamerstepper(GstPlugin *plugin)
+-{
+-    return gst_element_register(plugin, "winegstreamerstepper", GST_RANK_NONE, GST_TYPE_WG_STEPPER);
+-}
+-
+-static bool wg_stepper_step(WgStepper *stepper);
+-static void wg_stepper_flush(WgStepper *stepper);
++G_DEFINE_TYPE (LwSourceStepper, wg_stepper, GST_TYPE_ELEMENT);
++gboolean gst_element_register_lwwgsourcestepper(GstPlugin *plugin)
++{
++    return gst_element_register(plugin, "lwwgsourcestepper", GST_RANK_NONE, GST_TYPE_WG_STEPPER);
++}
++
++static bool wg_stepper_step(LwSourceStepper *stepper);
++static void wg_stepper_flush(LwSourceStepper *stepper);
+ 
+ struct wg_transform
+ {
+     struct wg_transform_attrs attrs;
+ 
+     GstElement *container;
+-    WgStepper *stepper;
++    LwSourceStepper *stepper;
+     GstAllocator *allocator;
+     GstPad *my_src, *my_sink;
+     GstSegment segment;
+@@ -163,14 +163,14 @@
+ {
+     GstVideoBufferPool parent;
+     GstVideoInfo info;
+-} WgVideoBufferPool;
++} LwSourceVideoBufferPool;
+ 
+ typedef struct
+ {
+     GstVideoBufferPoolClass parent_class;
+-} WgVideoBufferPoolClass;
+-
+-G_DEFINE_TYPE(WgVideoBufferPool, wg_video_buffer_pool, GST_TYPE_VIDEO_BUFFER_POOL);
++} LwSourceVideoBufferPoolClass;
++
++G_DEFINE_TYPE(LwSourceVideoBufferPool, wg_video_buffer_pool, GST_TYPE_VIDEO_BUFFER_POOL);
+ 
+ static void buffer_add_video_meta(GstBuffer *buffer, GstVideoInfo *info)
+ {
+@@ -193,7 +193,7 @@
+         GstBufferPoolAcquireParams *params)
+ {
+     GstBufferPoolClass *parent_class = GST_BUFFER_POOL_CLASS(wg_video_buffer_pool_parent_class);
+-    WgVideoBufferPool *pool = (WgVideoBufferPool *)gst_pool;
++    LwSourceVideoBufferPool *pool = (LwSourceVideoBufferPool *)gst_pool;
+     GstFlowReturn ret;
+ 
+     GST_LOG("%"GST_PTR_FORMAT", buffer %p, params %p", pool, buffer, params);
+@@ -207,20 +207,20 @@
+     return ret;
+ }
+ 
+-static void wg_video_buffer_pool_init(WgVideoBufferPool *pool)
+-{
+-}
+-
+-static void wg_video_buffer_pool_class_init(WgVideoBufferPoolClass *klass)
++static void wg_video_buffer_pool_init(LwSourceVideoBufferPool *pool)
++{
++}
++
++static void wg_video_buffer_pool_class_init(LwSourceVideoBufferPoolClass *klass)
+ {
+     GstBufferPoolClass *pool_class = GST_BUFFER_POOL_CLASS(klass);
+     pool_class->alloc_buffer = wg_video_buffer_pool_alloc_buffer;
+ }
+ 
+-static WgVideoBufferPool *wg_video_buffer_pool_create(GstCaps *caps, gsize plane_align,
++static LwSourceVideoBufferPool *wg_video_buffer_pool_create(GstCaps *caps, gsize plane_align,
+         GstAllocator *allocator, MFVideoInfo *video_info, GstVideoAlignment *align)
+ {
+-    WgVideoBufferPool *pool;
++    LwSourceVideoBufferPool *pool;
+     GstStructure *config;
+     gsize max_size;
+ 
+@@ -297,7 +297,7 @@
+ 
+ static gboolean transform_sink_query_allocation(struct wg_transform *transform, GstQuery *query)
+ {
+-    WgVideoBufferPool *pool;
++    LwSourceVideoBufferPool *pool;
+     GstVideoAlignment align;
+     const char *mime_type;
+     GstStructure *params;
+@@ -552,7 +552,7 @@
+         /* We try to intercept buffers produced by the parser, so if we push a large buffer into the
+          * parser, it won't push everything into the decoder all in one go.
+          */
+-        if ((element = create_element("winegstreamerstepper", NULL)) &&
++        if ((element = create_element("lwwgsourcestepper", NULL)) &&
+                 append_element(transform->container, element, first, last))
+             /* element is owned by the container */
+             transform->stepper = WG_STEPPER(element);
+@@ -1386,7 +1386,7 @@
+ /* Move events and at most one buffer from the internal fifo queue to the output src pad.
+  * Returns true if anything is moved, or false if the fifo is empty.
+  */
+-static bool wg_stepper_step(WgStepper *stepper)
++static bool wg_stepper_step(LwSourceStepper *stepper)
+ {
+     bool pushed = false;
+     gpointer ptr;
+@@ -1410,7 +1410,7 @@
+     return pushed;
+ }
+ 
+-static void wg_stepper_flush(WgStepper *stepper)
++static void wg_stepper_flush(LwSourceStepper *stepper)
+ {
+     gpointer ptr;
+     GST_TRACE("Discarding all objects in the fifo");
+@@ -1425,13 +1425,13 @@
+ 
+ static GstStateChangeReturn wg_stepper_change_state(GstElement *element, GstStateChange transition)
+ {
+-    WgStepper *this = WG_STEPPER(element);
++    LwSourceStepper *this = WG_STEPPER(element);
+     if (transition == GST_STATE_CHANGE_READY_TO_NULL)
+         wg_stepper_flush(this);
+     return GST_STATE_CHANGE_SUCCESS;
+ }
+ 
+-static void wg_stepper_class_init(WgStepperClass *klass)
++static void wg_stepper_class_init(LwSourceStepperClass *klass)
+ {
+     gst_element_class_set_metadata(GST_ELEMENT_CLASS(klass), "winegstreamer buffer stepper", "Connector",
+         "Hold incoming buffer for manual pushing", "Yuxuan Shui <yshui@codeweavers.com>");
+@@ -1440,7 +1440,7 @@
+ 
+ static GstFlowReturn wg_stepper_chain_cb(GstPad *pad, GstObject *parent, GstBuffer *buf)
+ {
+-    WgStepper *this = WG_STEPPER(parent);
++    LwSourceStepper *this = WG_STEPPER(parent);
+     GST_TRACE("Pushing buffer %"GST_PTR_FORMAT" into fifo", buf);
+     gst_atomic_queue_push(this->fifo, buf);
+     return GST_FLOW_OK;
+@@ -1448,7 +1448,7 @@
+ 
+ static gboolean wg_stepper_event_cb(GstPad *pad, GstObject *parent, GstEvent *event)
+ {
+-    WgStepper *this = WG_STEPPER(parent);
++    LwSourceStepper *this = WG_STEPPER(parent);
+     if (gst_atomic_queue_length(this->fifo) == 0)
+     {
+         GST_TRACE("Processing event %"GST_PTR_FORMAT" immediately", event);
+@@ -1464,14 +1464,14 @@
+ 
+ static gboolean wg_stepper_src_query_cb(GstPad *pad, GstObject *parent, GstQuery *query)
+ {
+-    WgStepper *this = WG_STEPPER(parent);
++    LwSourceStepper *this = WG_STEPPER(parent);
+     GstPad *peer = gst_pad_get_peer(this->sink);
+     if (!peer) return gst_pad_query_default(pad, parent, query);
+     GST_TRACE("Forwarding query %"GST_PTR_FORMAT" to upstream", query);
+     return gst_pad_query(peer, query);
+ }
+ 
+-static void wg_stepper_init(WgStepper *stepper)
++static void wg_stepper_init(LwSourceStepper *stepper)
+ {
+     static GstStaticPadTemplate sink_factory =
+         GST_STATIC_PAD_TEMPLATE (

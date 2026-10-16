@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>local.livewallpaper.media-helper</string>
+<key>CFBundleName</key><string>LiveWallpaper Media Helper</string>
+<key>CFBundleExecutable</key><string>lwmedia-helper</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>LSUIElement</key><true/>
+<key>CFBundleVersion</key><string>1</string>
+<key>NSAppleEventsUsageDescription</key><string>Read the track title, artist, album artwork and playback state from the media player you selected, and send playback commands when requested.</string>
+</dict></plist>

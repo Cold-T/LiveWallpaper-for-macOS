@@ -1,0 +1,13 @@
+Windows Registry Editor Version 5.00
+
+; REVIEW TEMPLATE ONLY. engine_fixture.py writes a UTF-16 file with the private DLL path.
+; Import solely into the explicit owned fixture prefix, never the normal runtime.
+[HKEY_LOCAL_MACHINE\Software\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]
+"DllPath"="@@PRIVATE_FIXTURE_DLL_WINDOWS_PATH_ESCAPED@@"
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Storage.Streams.DataReader]
+"DllPath"="@@PRIVATE_FIXTURE_DLL_WINDOWS_PATH_ESCAPED@@"
+
+; This prefix remains silent from the beginning of engine startup.
+[HKEY_CURRENT_USER\Software\Wine\Drivers]
+"Audio"=""

@@ -263,6 +263,9 @@ struct ContentView: View {
             .compatibleGlass(cornerRadius: 16)
             .frame(minWidth: 600, minHeight: 250)
             //.sheet(isPresented: $showSettings) { SettingsView(viewModel: viewModel) }
+            .alert("Wallpaper Engine", isPresented: Binding(get: { !viewModel.playbackError.isEmpty }, set: { if !$0 { viewModel.playbackError = "" } })) {
+                Button("OK") { viewModel.playbackError = "" }
+            } message: { Text(viewModel.playbackError) }
             .onAppear {
                 refreshContent()
             }
@@ -652,6 +655,7 @@ struct SettingsView: View {
     @State private var workshopInput = ""
     @State private var steamLoginStatus = ""
     @State private var steamPassword = ""
+    @AppStorage("WineRuntimePath") private var wineRuntimePath = ""
     @AppStorage(UserDefaultsKeys.steamUsername) var steamUsername = ""
     @AppStorage(UserDefaultsKeys.scaleMode) var scaleMode: Int = 0
     @State private var localMinutes: Int = 60
@@ -689,6 +693,24 @@ struct SettingsView: View {
                         }
                     }
 
+                    Divider()
+
+                    SettingRow(title: "Wallpaper Engine") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                TextField("播放运行时目录 / Playback runtime", text: $wineRuntimePath)
+                                    .textFieldStyle(.roundedBorder)
+                                Button("选择 / Choose") {
+                                    let panel = NSOpenPanel()
+                                    panel.canChooseDirectories = true
+                                    panel.canChooseFiles = false
+                                    if panel.runModal() == .OK, let url = panel.url { wineRuntimePath = url.path }
+                                }
+                            }
+                            Text("使用自己的 Wallpaper Engine 安装。Scene / Web 通过 Wine 播放；本地视频保持原有播放方式。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                     Divider()
 
 	                    SettingRow(title: L.steamWorkshop) {
@@ -1250,6 +1272,12 @@ struct WorkshopImporter {
             let pipe = Pipe()
             var environment = ProcessInfo.processInfo.environment
 
+            // Finder-launched applications do not inherit the user's shell PATH.
+            // Prefer installed Homebrew tools over Apple's developer-tool shims.
+            let pythonDirectories = ["/opt/homebrew", "/usr/local"].flatMap { root in
+                ["python", "python@3.14", "python@3.13", "python@3.12"].map { root + "/opt/" + $0 + "/libexec/bin" }
+            }.filter { FileManager.default.isExecutableFile(atPath: $0 + "/python3") }
+            environment["PATH"] = (pythonDirectories + ["/opt/homebrew/bin", "/usr/local/bin", environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"]).joined(separator: ":")
             environment["LIVEWALLPAPER_IMPORT_DIR"] = importFolder
             environment["LIVEWALLPAPER_IMPORT_MODE"] = "symlink"
             environment["LIVEWALLPAPER_SKIP_PLAY"] = "1"
@@ -1646,17 +1674,18 @@ class WallpaperViewModel: ObservableObject {
     @Published var volume: Double = 50.0
     @Published var vinttageBar: Bool = true
     @Published var steamLoginStatus: SteamLoginStatus = .idle
+    @Published var playbackError = ""
     @Published var isImportingWorkshop = false
     @Published var workshopImportStatus = ""
     @Published var workshopImportStatusIsError = false
     @Published var workshopImportProgress = 0.0
 
+    private var playbackErrorObserver: NSObjectProtocol?
     private var currentReloadID = UUID()
     private var steamLoginCheckTask: Task<Void, Never>?
     private var workshopImportTask: Task<Void, Never>?
     private var workshopImportProgressTask: Task<Void, Never>?
     private var completedWorkshopDownloadCount = 0
-    private let reloadIDLock = NSLock()
     private let defaults = UserDefaults.standard
     let engine: LiveWallpaper
 
@@ -1664,9 +1693,14 @@ class WallpaperViewModel: ObservableObject {
         self.engine = engine
         loadSettings()
         self.engine.setupNotifications()
+        playbackErrorObserver = NotificationCenter.default.addObserver(forName: Notification.Name("LWWinePlaybackError"), object: nil, queue: .main) { [weak self] note in
+            let message = note.object as? String ?? "Playback failed"
+            Task { @MainActor [weak self] in self?.playbackError = message }
+        }
     }
 
     func invalidate() {
+        if let playbackErrorObserver { NotificationCenter.default.removeObserver(playbackErrorObserver) }
         cancelSteamLoginStatusChecks()
         cancelWorkshopImportProgress()
         engine.removeNotifications()
@@ -1685,57 +1719,89 @@ class WallpaperViewModel: ObservableObject {
         engine.checkFolderPath()
         ThumbnailCache.shared.clearCache()
 
-        guard let files = try? FileManager.default.contentsOfDirectory(atPath: folderPath) else {
-            return
-        }
-
-        let videoFiles = files.filter { f in
-            let e = (f as NSString).pathExtension.lowercased()
-            return e == "mp4" || e == "mov"
-        }
-
+        // Directory enumeration and project probing can wait on FileProvider.
+        // Capture this reload's folder before moving all scanning off the UI.
+        let selectedFolder = folderPath
+        let libraryEngine = engine
         let reloadID = UUID()
-        reloadIDLock.lock()
         currentReloadID = reloadID
-        reloadIDLock.unlock()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-
-            let newVideos: [VideoItem] = videoFiles.map { f in
-                let full = (self.folderPath as NSString).appendingPathComponent(f)
-                let base = (f as NSString).deletingPathExtension
-                let thumbPath =
-                    (self.engine.thumbnailCachePath() as NSString?)?.appendingPathComponent(
-                        "\(base).png") ?? ""
-
-                var item = VideoItem(filename: f, path: full, thumbnailPath: thumbPath)
-                self.engine.videoQualityBadge(for: URL(fileURLWithPath: full)) { badge in
-                    item.quality = badge
-                }
-                return item
+            // Publish an empty result for an unavailable folder, rather than
+            // leaving selectable entries from the previously selected folder.
+            let files = (try? FileManager.default.contentsOfDirectory(atPath: selectedFolder)) ?? []
+            let videoFiles = files.filter { file in
+                libraryEngine.isPlayableWallpaperPath((selectedFolder as NSString).appendingPathComponent(file))
             }
 
+            let newVideos: [VideoItem] = videoFiles.map { f in
+                let full = (selectedFolder as NSString).appendingPathComponent(f)
+                let base = (f as NSString).deletingPathExtension
+                let thumbPath =
+                    (libraryEngine.thumbnailCachePath() as NSString?)?.appendingPathComponent(
+                        "\(base).png") ?? ""
+
+                if libraryEngine.isEngineProjectPath(full) {
+                    let projectURL = URL(fileURLWithPath: full).appendingPathComponent("project.json")
+                    let data = try? Data(contentsOf: projectURL)
+                    let project = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+                    let directory = URL(fileURLWithPath: full)
+                    let preview = (project["preview"] as? String).map { directory.appendingPathComponent($0).standardizedFileURL }
+                    let safePreview = preview.flatMap { $0.path.hasPrefix(directory.standardizedFileURL.path + "/") ? $0.path : nil } ?? ""
+                    var item = VideoItem(filename: project["title"] as? String ?? f, path: full, thumbnailPath: safePreview)
+                    item.quality = "WE · " + (project["type"] as? String ?? "Scene")
+                    return item
+                }
+                return VideoItem(filename: f, path: full, thumbnailPath: thumbPath)
+            }
+
+            let missingThumbnails = newVideos.filter {
+                $0.quality == nil && NSImage(contentsOfFile: $0.thumbnailPath) == nil
+            }
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
 
-                self.reloadIDLock.lock()
-                let isValid = reloadID == self.currentReloadID
-                self.reloadIDLock.unlock()
+                guard reloadID == self.currentReloadID, selectedFolder == self.folderPath else { return }
+                self.videos = newVideos
 
-                if isValid {
-                    self.videos = newVideos
-
-                    let missingThumbnails = newVideos.filter { $0.loadThumbnail() == nil }
-                    if !missingThumbnails.isEmpty {
-                        NSLog(
-                            "Found \(missingThumbnails.count) videos without thumbnails, generating..."
-                        )
-                        self.engine.generateThumbnails()
+                // Load metadata without transferring the UI's engine instance
+                // into AVFoundation completion handlers.
+                Task { [weak self] in
+                    for video in newVideos where video.quality == nil {
+                        let badge = await Self.videoQualityBadge(for: URL(fileURLWithPath: video.path))
+                        guard let self, self.currentReloadID == reloadID else { return }
+                        guard let index = self.videos.firstIndex(where: { $0.id == video.id }) else { continue }
+                        self.videos[index].quality = badge
                     }
+                }
+
+                if !missingThumbnails.isEmpty {
+                    NSLog(
+                        "Found \(missingThumbnails.count) videos without thumbnails, generating..."
+                    )
+                    // Native generation also enumerates the folder. Keep that
+                    // work off the main thread and use this scan's snapshot.
+                    self.engine.generateThumbnailsInBackground(forFolder: selectedFolder)
                 }
             }
         }
+    }
+
+    nonisolated private static func videoQualityBadge(for url: URL) async -> String {
+        do {
+            let asset = AVURLAsset(url: url)
+            guard let track = try await asset.loadTracks(withMediaType: .video).first else { return "" }
+            let (size, transform) = try await track.load(.naturalSize, .preferredTransform)
+            let resolution = size.applying(transform)
+            let width = abs(resolution.width)
+            let height = abs(resolution.height)
+            if width >= 3840 || height >= 2160 { return "4K" }
+            if width >= 1920 || height >= 1080 { return "HD" }
+            if width >= 1280 || height >= 720 { return "SD" }
+        } catch {
+            // A damaged or unavailable file remains selectable without a badge.
+        }
+        return ""
     }
 
     func loadDisplays() {
@@ -1743,6 +1809,7 @@ class WallpaperViewModel: ObservableObject {
     }
 
     func startWallpaper(video: VideoItem, displays: [UInt32]) {
+        playbackError = ""
         let arr = displays.map { NSNumber(value: $0) }
         engine.startWallpaper(withPath: video.path, onDisplays: arr)
     }
