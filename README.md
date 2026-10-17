@@ -80,3 +80,7 @@ LiveWallpaper is distributed under the GNU General Public License version 3 or l
 ## Credits
 
 [Wallpaper Engine](https://icons8.com/icon/jQspry5Tmnu5/wallpaper-engine) icon by [Icons8](https://icons8.com).
+
+## Uninstall
+
+Download `uninstall-livewallpaper.command` from the release and run `bash ~/Downloads/uninstall-livewallpaper.command`. It previews the targets and asks for confirmation. Use `--dry-run` to inspect only. Quit the app first. Managed runtime components and imported engine copies move to Trash; settings reset. Wallpapers, original engine files and shared dependencies are preserved. Empty Trash to reclaim space. No sudo or Python is needed.

@@ -77,3 +77,7 @@ LiveWallpaper 以 GNU General Public License version 3 or later 发布。许可�
 ## Credits
 
 [Wallpaper Engine](https://icons8.com/icon/jQspry5Tmnu5/wallpaper-engine) icon by [Icons8](https://icons8.com).
+
+## 卸载
+
+从 Release 下载 `uninstall-livewallpaper.command`，运行 `bash ~/Downloads/uninstall-livewallpaper.command`。脚本会先列出目标并询问确认；添加 `--dry-run` 可仅预览。请先从菜单栏退出应用。脚本将应用和专用 Wine、DXMT、媒体组件、引擎导入副本移到废纸篓，并重置设置；保留壁纸、原始引擎及共享依赖。清空废纸篓后释放空间。不需要 sudo 或 Python。
