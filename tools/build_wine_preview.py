@@ -48,7 +48,7 @@ def build(work):
     macos.mkdir(parents=True, exist_ok=True)
     resources.mkdir(exist_ok=True)
     common = ["-isysroot", SDK, "-mmacosx-version-min=14.6", "-std=c++17", "-isystem", SDK / "usr/include/c++/v1", "-I", ROOT / "vendor/yaml-cpp/include", "-fmodules", "-fmodules-cache-path=" + str(work / "modules")]
-    sources = list((ROOT / "vendor/yaml-cpp/src").glob("*.cpp")) + [ROOT / f for f in ["LiveWallpaper.mm", "DisplayObjc.mm", "SaveSystem.mm", "playback/bundle/BundledRuntime.mm"]]
+    sources = list((ROOT / "vendor/yaml-cpp/src").glob("*.cpp")) + [ROOT / f for f in ["LiveWallpaper.mm", "DisplayObjc.mm", "SaveSystem.mm", "playback/bundle/BundledRuntime.mm", "playback/setup/FirstRunSetup.mm"]]
     def compile_one(source):
         obj = objects / (source.name + ".o")
         if obj.exists() and source.suffix == ".cpp" and obj.stat().st_mtime >= source.stat().st_mtime: return obj
@@ -64,17 +64,23 @@ def build(work):
          "-external-plugin-path", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server", "-enable-upcoming-feature", "NonisolatedNonsendingByDefault",
           "-I", ROOT / "vendor/yaml-cpp/include",
          "-module-cache-path", work / "swift-modules", "-import-objc-header", ROOT / "LiveWallpaper-Bridging-Header.h",
-         ROOT / "LiveWallpaperApp.swift", ROOT / "ContentView.swift", *objs, *link, "-lc++", "-o", macos / "LiveWallpaper"])
+         ROOT / "LiveWallpaperApp.swift", ROOT / "ContentView.swift", ROOT / "FirstRunSetupView.swift", *objs, *link, "-lc++", "-o", macos / "LiveWallpaper"])
     run([BIN / "clang++", *common, "-fobjc-arc", ROOT / "wallpaperdaemon/daemon.mm", *link, "-o", macos / "wallpaperdaemon"])
     for directory in ["tools", "playback", "asset", "en.lproj", "zh-Hans.lproj"]:
         ignored = ("__pycache__", "media_bridge", "diagnostics") if directory == "playback" else ("__pycache__",)
         copy_resource_tree(ROOT / directory, resources / directory, ignored)
+    run([BIN / "clang", "-arch", "x86_64", "-arch", "arm64", "-isysroot", SDK,
+         "-mmacosx-version-min=14.6", "-dynamiclib", "-O2", "-fblocks",
+         ROOT / "playback/wine_volume.c", ROOT / "playback/wine_app_identity.m", "-fobjc-arc",
+         "-framework", "AppKit", "-framework", "AudioUnit", "-framework", "AudioToolbox",
+         "-o", resources / "playback/bin/wine_volume.dylib"])
     # Source staging may lose executable bits; child download scripts are
     # invoked directly by the Workshop coordinator.
     for script in (resources / "tools").glob("*.sh"):
         script.chmod(script.stat().st_mode | 0o111)
     for document in ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "CONTRIBUTORS.md"]:
         shutil.copy2(ROOT / document, resources / document)
+    shutil.copy2(ROOT / "vendor/yaml-cpp/LICENSE", resources / "YAML-CPP-LICENSE")
     # Prefer a compiled asset catalog if available; icon remains usable without it.
     catalog = ROOT.parent / "LiveWallpaper-for-macOS/build/local/LiveWallpaper.app/Contents/Resources/Assets.car"
     if not catalog.exists(): catalog = Path("/Applications/LiveWallpaper.app/Contents/Resources/Assets.car")

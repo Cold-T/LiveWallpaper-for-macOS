@@ -6,7 +6,7 @@
 
 ![LiveWallpaper](./Assets.xcassets/LiveWallpaperIcon.appiconset/icon_512x512.png)
 
-LiveWallpaper 是一个面向 macOS 14+ 的开源动态壁纸应用。
+LiveWallpaper 是一个面向 macOS 14.6+、Apple Silicon Mac 的开源动态壁纸应用。
 
 ## 项目目的
 
@@ -26,11 +26,13 @@ LiveWallpaper 通过 `steamcmd` 下载 Workshop 项目，并以 `.weproject` 库
 
 ## 安装 v2.0.0
 
-从 [v2.0.0 Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0) 下载 `Livewallpaper-for-macOS-v2.0.0.zip`，解压后将 `Livewallpaper for macOS.app` 移入“应用程序”。需要 Apple Silicon、macOS 14.6 及以上；当前包为 ad-hoc 签名，未做 Apple 公证。
+从 [v2.0.0 Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0) 下载 `Livewallpaper-for-macOS-v2.0.0.zip`，解压后将 `Livewallpaper for macOS.app` 移入“应用程序”。需要 Apple Silicon、macOS 14.6 及以上、Rosetta 2 和至少 6 GiB 可用空间；当前包为 ad-hoc 签名，未做 Apple 公证。
 
-公开发行包包含前端、原生辅助程序、播放适配组件及选定 Wine 媒体补丁源码，不包含商业 Wallpaper Engine、完整 Wine/DXMT 运行时或壁纸素材。裸 MP4/MOV 可直接播放；Scene/Web 项目需要使用自己的引擎安装与免费兼容层准备外部运行时，再在设置中选择运行时目录。步骤与验证范围见 [运行说明](docs/wine-playback.zh-CN.md)。
+首次启动会从 Sikarugir 和 Gcenx 的 GitHub 原始发布页自动下载三个固定版本归档，合计约 448.5 MB，逐一校验 SHA-256 后组合 Wine 运行时并应用 DXMT 与媒体修复。应用内附约 16 MB 的运行时适配组件及许可文件，不包含商业 Wallpaper Engine 或壁纸。
 
-Workshop 下载另需 Python、SteamCMD 和自己的 Steam 登录。之前的本机个人一体包属于独立的自用构建，不是本次公开下载文件。
+选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`，向导自动校验、导入文件并配置独立播放环境，完成后进入壁纸库。原文件不会被改写；已有可用环境会自动跳过配置。播放环境安装不需要 Python 或 Xcode；Workshop 下载另需 Python、SteamCMD 和自己的 Steam 登录。详见 [首次启动说明](docs/first-run-setup.zh-CN.md)。
+
+同一 release 的 `Runtime-Adapter-Sources.tar.gz` 提供随包适配组件的源码材料、补丁、构建说明和许可文件。Vendor Wine 与媒体框架归档由首次安装流程直接从各自上游发布页下载。
 
 ## 从源码编译
 
@@ -41,7 +43,7 @@ git submodule update --init --recursive
 python3 tools/build_wine_preview.py
 ```
 
-该命令构建前端预览，不下载或包含 Windows 引擎。外部运行时准备与个人一体包构建见 [接入与运行说明](docs/wine-playback.zh-CN.md)。
+该命令构建前端。公开在线安装包还需固定安装清单和适配组件 overlay，构建方法见 [首次启动说明](docs/first-run-setup.zh-CN.md)。公开包不包含 Windows 引擎。
 
 ## 使用
 

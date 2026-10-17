@@ -1419,7 +1419,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 }
 
 -(void)updateVolume:(double)value{
-    float f_percentage = value;
+    if (!isfinite(value)) return;
+    float f_percentage = fmax(0.0, fmin(100.0, value));
     float volume = f_percentage / 100.0f;
 
       NSLog(@"Slider: %.0f%% → volume: %.2f", f_percentage, volume);
@@ -1431,6 +1432,8 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
                                                forKey:@"wallpapervolume"];
       [[NSUserDefaults standardUserDefaults] synchronize];
 
+      [_winePlayback updateVolume];
+      [NSNotificationCenter.defaultCenter postNotificationName:@"LWVolumeChanged" object:nil];
       CFNotificationCenterPostNotification(
           CFNotificationCenterGetDarwinNotifyCenter(),
           CFSTR("uk.coldt.LiveWallpaper.WinePreview.volumeChanged"), NULL, NULL, true);

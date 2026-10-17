@@ -7,7 +7,7 @@
 
 ![LiveWallpaper](./Assets.xcassets/LiveWallpaperIcon.appiconset/icon_512x512.png)
 
-LiveWallpaper is an open-source live wallpaper app for macOS 14+.
+LiveWallpaper is an open-source live wallpaper app for Apple Silicon Macs running macOS 14.6+.
 
 ## Purpose
 
@@ -27,11 +27,13 @@ Use Workshop content only through your own Steam account and only when you have 
 
 ## Install v2.0.0
 
-Download `Livewallpaper-for-macOS-v2.0.0.zip` from the [v2.0.0 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0), extract it, and move `Livewallpaper for macOS.app` into Applications. Requires Apple Silicon and macOS 14.6 or later. The app is ad-hoc signed and is not notarized by Apple.
+Download `Livewallpaper-for-macOS-v2.0.0.zip` from the [v2.0.0 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0), extract it, and move `Livewallpaper for macOS.app` into Applications. Requires Apple Silicon, macOS 14.6 or later, Rosetta 2, and at least 6 GiB of free disk space. The app is ad-hoc signed and is not notarized by Apple.
 
-The public package contains the frontend, native helper, playback adapters and selected Wine media patch sources. It does not include the commercial Wallpaper Engine, a complete Wine/DXMT runtime or wallpapers. Standalone MP4/MOV files work directly. Scene/Web projects require your own engine installation and a prepared external compatibility runtime, selected in Settings. See the [runtime guide](docs/wine-playback.zh-CN.md).
+On first launch, the setup wizard downloads three fixed upstream archives (about 448.5 MB in total) directly from the Sikarugir and Gcenx GitHub releases. It verifies their SHA-256 checksums, assembles the Wine runtime, and applies the bundled DXMT and media fixes. The application includes about 16 MB of runtime adapters and notices; it does not include the commercial Wallpaper Engine or wallpapers.
 
-Workshop downloads additionally require Python, SteamCMD and your own Steam login. Earlier local personal bundles are separate builds and are not this public download.
+Choose your own **Wallpaper Engine 2.8.42** installation folder or `wallpaper64.exe`. Setup checks and imports the required files, prepares isolated playback environments, then opens the wallpaper library. Your original files are left untouched. Existing usable installations skip setup. Playback setup does not require Python or Xcode; Workshop downloads additionally require Python, SteamCMD and your own Steam login. See the [first-launch guide (Chinese)](docs/first-run-setup.zh-CN.md).
+
+`Runtime-Adapter-Sources.tar.gz` in the same release provides the source materials, patches, build instructions and license notices for the bundled runtime adapters. Vendor Wine and media framework archives are downloaded from their original upstream releases during setup.
 
 ## Build from source
 
@@ -42,7 +44,7 @@ git submodule update --init --recursive
 python3 tools/build_wine_preview.py
 ```
 
-This builds the frontend preview without downloading or bundling the Windows engine. See the [integration guide](docs/wine-playback.zh-CN.md) for runtime preparation and personal packaging.
+This builds the frontend. Packaging the public online installer additionally requires the pinned setup recipe and runtime overlay; see the [setup build guide](docs/first-run-setup.zh-CN.md). The Windows engine is never included in the public package.
 
 ## Usage
 

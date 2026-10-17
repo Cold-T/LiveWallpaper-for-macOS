@@ -44,6 +44,10 @@ static NSTimer *LWPlaybackMonitorTimer(void (^block)(NSTimer *)) {
   return timer;
 }
 
+static NSString *LWPlaybackVolumeValue(void) {
+  return [NSString stringWithFormat:@"%.6f", fmax(0, fmin(1, [NSUserDefaults.standardUserDefaults doubleForKey:@"wallpapervolume"]))];
+}
+
 // Native supervisor. Wine, original Windows files, prefix and logs live in an
 // explicitly prepared runtime directory. No Python is needed for playback.
 @interface LWWinePlayback : NSObject
@@ -55,6 +59,7 @@ static NSTimer *LWPlaybackMonitorTimer(void (^block)(NSTimer *)) {
 - (BOOL)start:(NSString *)project screen:(NSScreen *)screen error:(NSError **)error;
 - (BOOL)stopDisplay:(NSString *)uuid;
 - (void)stopAll;
+- (void)updateVolume;
 @end
 
 @implementation LWWinePlayback
@@ -77,6 +82,14 @@ static NSTimer *LWPlaybackMonitorTimer(void (^block)(NSTimer *)) {
   [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];
   [NSDistributedNotificationCenter.defaultCenter removeObserver:self];
 }
+- (void)updateVolume {
+  NSString *value = LWPlaybackVolumeValue();
+  for (NSDictionary *session in self.sessions.allValues) {
+    NSError *error = nil;
+    if (![value writeToFile:[session[@"directory"] stringByAppendingPathComponent:@"volume.txt"] atomically:YES encoding:NSUTF8StringEncoding error:&error])
+      [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:error.localizedDescription];
+  }
+}
 - (void)sleep:(NSNotification *)note { self.sleeping = YES; [self tick]; }
 - (void)wake:(NSNotification *)note { self.sleeping = NO; [self tick]; }
 - (void)lock:(NSNotification *)note { self.locked = YES; [self tick]; }
@@ -94,6 +107,8 @@ static NSTimer *LWPlaybackMonitorTimer(void (^block)(NSTimer *)) {
 - (NSString *)stateRoot {
   NSString *override = NSProcessInfo.processInfo.environment[@"LIVEWALLPAPER_WINE_STATE"];
   if (override.length) return override;
+  NSString *managed = [NSUserDefaults.standardUserDefaults stringForKey:@"WineStatePath"];
+  if (managed.length) return managed;
   NSString *support = [NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject];
   return [support stringByAppendingPathComponent:@"LiveWallpaper-Wine"];
 }
@@ -202,7 +217,16 @@ static NSTimer *LWPlaybackMonitorTimer(void (^block)(NSTimer *)) {
   [fm removeItemAtPath:status error:nil];
   NSString *title = [@"LiveWallpaper-Wine-" stringByAppendingString:uuid];
   NSMutableDictionary *env = [self environment:runtime prefix:prefix];
-  env[@"DYLD_INSERT_LIBRARIES"] = [runtime stringByAppendingPathComponent:@"desktop_window_bridge.dylib"];
+  NSString *volumeLibrary = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"playback/bin/wine_volume.dylib"];
+  if (![fm fileExistsAtPath:volumeLibrary]) {
+    if (error) *error = [NSError errorWithDomain:@"LiveWallpaper" code:70 userInfo:@{NSLocalizedDescriptionKey:@"Wallpaper audio module is missing. Reinstall the app."}];
+    return NO;
+  }
+  NSString *volumeFile = [directory stringByAppendingPathComponent:@"volume.txt"];
+  NSString *volumeValue = LWPlaybackVolumeValue();
+  if (![volumeValue writeToFile:volumeFile atomically:YES encoding:NSUTF8StringEncoding error:error]) return NO;
+  env[@"LW_WINE_VOLUME_FILE"] = volumeFile;
+  env[@"DYLD_INSERT_LIBRARIES"] = [NSString stringWithFormat:@"%@:%@", volumeLibrary, [runtime stringByAppendingPathComponent:@"desktop_window_bridge.dylib"]];
   env[@"LW_WINE_TARGET_TITLE"] = title;
   env[@"LW_WINE_DESKTOP_ENABLE"] = @"1"; env[@"LW_WINE_DESKTOP_FILL"] = @"1";
   env[@"LW_WINE_DESKTOP_INPUT"] = @"1";

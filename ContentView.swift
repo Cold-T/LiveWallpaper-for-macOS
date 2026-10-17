@@ -234,6 +234,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 Spacer(minLength: 20)
                 ToolbarView(
+                    volume: $viewModel.volume,
                     showSettings: $showSettings,
                     onReload: { viewModel.reloadContent() },
                     onStopWallpaper: { viewModel.stopWallpaper() }
@@ -300,6 +301,8 @@ struct ContentView: View {
 
 // MARK: - Toolbar View
 struct ToolbarView: View {
+    @Binding var volume: Double
+    @State private var showVolume = false
     @Binding var showSettings: Bool
     let onReload: () -> Void
     let onStopWallpaper: () -> Void
@@ -334,6 +337,23 @@ struct ToolbarView: View {
                         .font(.system(size: 16))
                 }
                 .help(L.stopWallpaper)
+            }
+
+            Button(action: { showVolume.toggle() }) {
+                Image(systemName: volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(.system(size: 16))
+            }
+            .help(L.videoVolume)
+            .accessibilityLabel(L.videoVolume)
+            .popover(isPresented: $showVolume) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("\(L.videoVolume)  \(Int(volume))%")
+                    Slider(value: $volume, in: 0...100, step: 1)
+                        .accessibilityLabel(L.videoVolume)
+                        .onChange(of: volume) { sharedEngine?.updateVolume($0) }
+                }
+                .padding(16)
+                .frame(width: 250)
             }
 
             if #available(macOS 26.0, *) {
@@ -1681,6 +1701,7 @@ class WallpaperViewModel: ObservableObject {
     @Published var workshopImportProgress = 0.0
 
     private var playbackErrorObserver: NSObjectProtocol?
+    private var volumeObserver: NSObjectProtocol?
     private var currentReloadID = UUID()
     private var steamLoginCheckTask: Task<Void, Never>?
     private var workshopImportTask: Task<Void, Never>?
@@ -1693,6 +1714,13 @@ class WallpaperViewModel: ObservableObject {
         self.engine = engine
         loadSettings()
         self.engine.setupNotifications()
+        volumeObserver = NotificationCenter.default.addObserver(forName: Notification.Name("LWVolumeChanged"), object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let value = self.defaults.double(forKey: UserDefaultsKeys.volumePercentage)
+                if self.volume != value { self.volume = value }
+            }
+        }
         playbackErrorObserver = NotificationCenter.default.addObserver(forName: Notification.Name("LWWinePlaybackError"), object: nil, queue: .main) { [weak self] note in
             let message = note.object as? String ?? "Playback failed"
             Task { @MainActor [weak self] in self?.playbackError = message }
@@ -1700,6 +1728,7 @@ class WallpaperViewModel: ObservableObject {
     }
 
     func invalidate() {
+        if let volumeObserver { NotificationCenter.default.removeObserver(volumeObserver) }
         if let playbackErrorObserver { NotificationCenter.default.removeObserver(playbackErrorObserver) }
         cancelSteamLoginStatusChecks()
         cancelWorkshopImportProgress()

@@ -19,11 +19,9 @@
 
 import SwiftUI
 import AppKit
-import ApplicationServices
-import ServiceManagement
 import Darwin
 
-private let previewDefaultsConfigured: Void = {
+private let runtimeDefaultsConfigured: Void = {
     guard LWPrepareBundledRuntime() else { exit(1) }
     var defaults: [String: Any] = [:]
     let environment = ProcessInfo.processInfo.environment
@@ -31,7 +29,7 @@ private let previewDefaultsConfigured: Void = {
     if let library = environment["LIVEWALLPAPER_LIBRARY"] { defaults["WallpaperFolder"] = library }
     UserDefaults.standard.register(defaults: defaults)
 }()
-let sharedEngine: LiveWallpaper? = { _ = previewDefaultsConfigured; return LiveWallpaper.shared() }()
+let sharedEngine: LiveWallpaper? = { _ = runtimeDefaultsConfigured; return LiveWallpaper.shared() }()
 
 @main
 struct LiveWallpaperApp {
@@ -73,7 +71,6 @@ struct LiveWallpaperApp {
     }
 }
 
-
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem!
     var window: NSWindow!
@@ -81,11 +78,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var showWindowItem: NSMenuItem!
     private var nextWallpaperItem: NSMenuItem!
     private var quitItem: NSMenuItem!
-    
-    let engine = sharedEngine
+    private var volumeSlider: NSSlider!
+    private var volumeLabel: NSTextField!
+
+    private var playbackReady = false
+    var engine: LiveWallpaper? { playbackReady ? sharedEngine : nil }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        
+
+        _ = runtimeDefaultsConfigured
+        // The frontend-only edition can manage and play native videos without Wine.
+        // Only editions carrying setup components require the first-run wizard.
+        let includesSetup = Bundle.main.url(forResource: "SetupRuntime", withExtension: "json") != nil
+        playbackReady = !includesSetup || LWSetupRuntimeReady()
         NSApp.setActivationPolicy(.accessory)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -100,33 +105,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         statusItem.menu = makeStatusMenu()
 
-        // Create main window with ContentView
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView,.borderless],
             backing: .buffered,
             defer: false
         )
-        //hide titlebar
-        //window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.toolbarStyle = .unified
-        
+
         window.center()
-        window.contentView = NSHostingView(rootView: ContentView())
+        if playbackReady {
+            window.contentView = NSHostingView(rootView: ContentView())
+        } else {
+            window.contentView = NSHostingView(rootView: FirstRunSetupView(onComplete: { [weak self] in
+                guard let self else { return }
+                self.playbackReady = true
+                self.window.contentView = NSHostingView(rootView: ContentView())
+                self.updateStatusMenu()
+            }))
+        }
         window.title = "Livewallpaper for macOS"
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        
-        // The preview does not register login items or prompt for Accessibility.
 
-        
-
-        
-
-        
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -138,7 +142,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         NotificationCenter.default.post(name: .liveWallpaperShouldRefresh, object: nil)
-        
+
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -146,14 +150,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return true
     }
 
-    // Hide the window without quitting the app
-    @objc func hideWindow() {
-        window.orderOut(nil)
-    }
-
     // Quit the app completely
     @objc func quit() {
-        
+
         engine?.terminateApplication()
         NSApp.terminate(nil)
     }
@@ -197,6 +196,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(nextWallpaperItem)
 
         menu.addItem(NSMenuItem.separator())
+        let volumeItem = NSMenuItem()
+        let volumeView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 58))
+        volumeLabel = NSTextField(labelWithString: "")
+        volumeLabel.frame = NSRect(x: 18, y: 33, width: 204, height: 18)
+        volumeSlider = NSSlider(value: 0, minValue: 0, maxValue: 100, target: self, action: #selector(changeVolume(_:)))
+        volumeSlider.frame = NSRect(x: 18, y: 7, width: 204, height: 24)
+        volumeSlider.isContinuous = true
+        volumeSlider.setAccessibilityLabel(menuText(zh: "壁纸音量", en: "Wallpaper volume"))
+        volumeView.addSubview(volumeLabel)
+        volumeView.addSubview(volumeSlider)
+        volumeItem.view = volumeView
+        menu.addItem(volumeItem)
+        menu.addItem(NSMenuItem.separator())
 
         quitItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
@@ -206,13 +218,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return menu
     }
 
+    @objc private func changeVolume(_ sender: NSSlider) {
+        engine?.updateVolume(sender.doubleValue.rounded())
+        updateVolumeControl()
+    }
+
+    private func updateVolumeControl() {
+        let value = min(100, max(0, UserDefaults.standard.double(forKey: UserDefaultsKeys.volumePercentage)))
+        volumeSlider?.doubleValue = value
+        volumeLabel?.stringValue = "\(menuText(zh: "壁纸音量", en: "Wallpaper volume"))  \(Int(value))%"
+    }
+
     private func updateStatusMenu() {
+        updateVolumeControl()
         toggleWallpaperItem.title = isWallpaperRunning
             ? menuText(zh: "停止壁纸", en: "Stop Wallpaper")
             : menuText(zh: "开始壁纸", en: "Start Wallpaper")
         showWindowItem.title = menuText(zh: "显示主界面", en: "Show Main Window")
         nextWallpaperItem.title = menuText(zh: "下一个壁纸", en: "Next Wallpaper")
         nextWallpaperItem.isEnabled = isWallpaperRunning
+        toggleWallpaperItem.isEnabled = playbackReady
+        volumeSlider?.isEnabled = playbackReady
         quitItem.title = menuText(zh: "退出", en: "Quit")
     }
 
@@ -226,31 +252,5 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return Locale.preferredLanguages.first ?? "en"
         }
         return selectedLanguage
-    }
-}
-
-// MARK: Permission Access
-
-func hasAccessibilityAccess() -> Bool {
-    return AXIsProcessTrusted()
-}
-
-func requestAccessibilityAccess() {
-    let options: [String: Bool] = ["AXTrustedCheckOptionPrompt": true]
-    AXIsProcessTrustedWithOptions(options as CFDictionary)
-}
-
-func isLoginItemEnabled() -> Bool {
-    return UserDefaults.standard.bool(forKey: UserDefaultsKeys.launchAtLogin)
-}
-
-
-func setLoginItem(enabled: Bool) {
-    guard let bundleId = Bundle.main.bundleIdentifier else { return }
-
-    if SMLoginItemSetEnabled(bundleId as CFString, enabled) {
-        UserDefaults.standard.set(enabled, forKey: UserDefaultsKeys.launchAtLogin)
-    } else {
-        print("❌ Failed to update login items")
     }
 }
