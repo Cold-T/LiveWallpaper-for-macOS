@@ -90,8 +90,30 @@ static NSString *LWPlaybackVolumeValue(void) {
       [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:error.localizedDescription];
   }
 }
-- (void)sleep:(NSNotification *)note { self.sleeping = YES; [self tick]; }
-- (void)wake:(NSNotification *)note { self.sleeping = NO; [self tick]; }
+- (void)sleep:(NSNotification *)note {
+  self.sleeping = YES;
+  [self tick];
+}
+- (void)wake:(NSNotification *)note {
+  // A sleeping Mac cannot produce heartbeats. Give Wine and the display server
+  // time to resume before evaluating their health, including on a locked wake.
+  for (NSString *uuid in self.sessions.allKeys) {
+    NSMutableDictionary *session = [self.sessions[uuid] mutableCopy];
+    if ([session[@"stopping"] boolValue] || [session[@"stopFailed"] boolValue]) continue;
+    NSTask *control = session[@"controlTask"];
+    [session removeObjectForKey:@"controlTask"];
+    session[@"resumeDeadline"] = [NSDate dateWithTimeIntervalSinceNow:15];
+    session[@"controlFailures"] = @0;
+    session[@"controlApplied"] = @NO;
+    // Do not count time asleep against an in-flight wallpaper launch either.
+    if (![session[@"playbackStarted"] boolValue]) session[@"started"] = NSDate.date;
+    self.sessions[uuid] = session;
+    LWCancelWineTask(control);
+  }
+  self.sleeping = NO;
+  self.locked = LWDesktopSessionIsLocked();
+  [self tick];
+}
 - (void)lock:(NSNotification *)note { self.locked = YES; [self tick]; }
 - (void)unlock:(NSNotification *)note { self.locked = NO; [self tick]; }
 - (NSString *)runtime {
@@ -294,7 +316,7 @@ static NSString *LWPlaybackVolumeValue(void) {
       cwd:[runtime stringByAppendingPathComponent:@"engine"] log:attemptLog error:&error];
   if (!control) {
     LWAppendControlLog(log, [NSString stringWithFormat:@"[LWControl] action=%@ launch_failed code=%ld\n", action, (long)error.code]);
-    if (LWRecordControlFailure(session))
+    if (!self.sleeping && !session[@"resumeDeadline"] && LWRecordControlFailure(session))
       [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:error.localizedDescription ?: @"Unable to start window playback control; see control.log."];
     return;
   }
@@ -329,7 +351,7 @@ static NSString *LWPlaybackVolumeValue(void) {
       NSString *output = [NSString stringWithContentsOfFile:attemptLog encoding:NSUTF8StringEncoding error:nil] ?: @"";
       LWAppendControlLog(log, [NSString stringWithFormat:@"%@\n[LWControl] action=%@ reason=%ld status=%d accepted=%d startup=%d\n", output, action, (long)task.terminationReason, task.terminationStatus, success, LWControlStartupGrace(current)]);
       if (success) current[@"controlFailures"] = @0;
-      else if (LWRecordControlFailure(current))
+      else if (!owner.sleeping && !current[@"resumeDeadline"] && LWRecordControlFailure(current))
         [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:@"Unable to apply window playback control after three attempts; see control.log. Playback state has not been confirmed."];
       owner.sessions[uuid] = current;
     });
@@ -343,6 +365,17 @@ static NSString *LWPlaybackVolumeValue(void) {
     // Bound its cleanup too, and signal only this application-owned NSTask.
     (void)LWWaitForWineTask(control, 0);
   });
+}
+- (NSScreen *)screenForUUID:(NSString *)uuid {
+  for (NSScreen *screen in NSScreen.screens) {
+    CGDirectDisplayID display = [screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue];
+    CFUUIDRef displayUUID = CGDisplayCreateUUIDFromDisplayID(display);
+    if (!displayUUID) continue;
+    NSString *candidate = CFBridgingRelease(CFUUIDCreateString(NULL, displayUUID));
+    CFRelease(displayUUID);
+    if ([uuid isEqual:candidate]) return screen;
+  }
+  return nil;
 }
 - (void)tick {
   NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
@@ -358,7 +391,36 @@ static NSString *LWPlaybackVolumeValue(void) {
     NSTimeInterval elapsed = -[session[@"started"] timeIntervalSinceNow];
     NSDate *modified = [NSFileManager.defaultManager attributesOfItemAtPath:session[@"status"] error:nil][NSFileModificationDate];
     BOOL alive = modified && -modified.timeIntervalSinceNow < 8;
-    if (status[@"error"] && modified && -modified.timeIntervalSinceNow < 8) {
+    NSDate *resumeDeadline = session[@"resumeDeadline"];
+    if (resumeDeadline && !self.sleeping && resumeDeadline.timeIntervalSinceNow <= 0) {
+      [session removeObjectForKey:@"resumeDeadline"];
+      self.sessions[uuid] = session;
+      if (!alive || status[@"error"] || ![(NSTask *)session[@"task"] isRunning]) {
+        // Recover the same wallpaper on its original display. Stopping or
+        // switching wallpapers removes/replaces the session and cancels this.
+        NSScreen *target = [self screenForUUID:uuid];
+        if (!target) {
+          // A disconnected display may reappear after wake. Retain ownership
+          // without applying a wallpaper to a different screen.
+          session[@"resumeDeadline"] = [NSDate dateWithTimeIntervalSinceNow:5];
+          self.sessions[uuid] = session;
+          continue;
+        }
+        LWAppendControlLog([session[@"directory"] stringByAppendingPathComponent:@"control.log"],
+                           @"[LWRecovery] restarting wallpaper after wake\n");
+        if ([self stopDisplay:uuid]) {
+          NSError *error = nil;
+          if (![self start:session[@"project"] screen:target error:&error]) {
+            [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError"
+                object:error.localizedDescription ?: @"Unable to restore wallpaper after wake."];
+          }
+        }
+        if (self.stateChanged) self.stateChanged();
+        continue;
+      }
+    }
+    BOOL checkingHealth = !self.sleeping && !session[@"resumeDeadline"];
+    if (checkingHealth && status[@"error"] && modified && -modified.timeIntervalSinceNow < 8) {
       [self stopDisplay:uuid];
       NSString *message = [NSString stringWithFormat:@"Wallpaper Engine 播放失败，已清理此显示器的播放进程。\n%@\n日志 / Log: %@", status[@"error"], [session[@"directory"] stringByAppendingPathComponent:@"playback.log"]];
       [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:message];
@@ -366,7 +428,7 @@ static NSString *LWPlaybackVolumeValue(void) {
       continue;
     }
     LWAbsorbRendererStatus(session, status, alive);
-    if ((elapsed > 90 && (![session[@"playbackStarted"] boolValue] || !alive)) || (elapsed > 10 && [session[@"ready"] boolValue] && !alive)) {
+    if (checkingHealth && ((elapsed > 90 && (![session[@"playbackStarted"] boolValue] || !alive)) || (elapsed > 10 && [session[@"ready"] boolValue] && !alive))) {
       [self stopDisplay:uuid];
       [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:@"Wallpaper Engine 未能保持播放，请查看运行日志。 / Playback stopped; check the playback log."];
       if (self.stateChanged) self.stateChanged();

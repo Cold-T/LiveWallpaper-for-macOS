@@ -96,7 +96,7 @@ def build(work):
     (APP / "Contents/Info.plist").write_bytes(plistlib.dumps({
         "CFBundleExecutable": "LiveWallpaper", "CFBundleIdentifier": "uk.coldt.LiveWallpaper.WinePreview",
         "CFBundleName": "Livewallpaper for macOS", "CFBundleDisplayName": "Livewallpaper for macOS",
-        "CFBundlePackageType": "APPL", "CFBundleShortVersionString": "2.0.1", "CFBundleVersion": "206",
+        "CFBundlePackageType": "APPL", "CFBundleShortVersionString": "2.0.1", "CFBundleVersion": "207",
         "LSUIElement": True, "NSHighResolutionCapable": True, "NSPrincipalClass": "NSApplication",
         "CFBundleIconFile": "LiveWallpaperIcon", "LSMinimumSystemVersion": "14.6",
     }))
