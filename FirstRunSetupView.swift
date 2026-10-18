@@ -10,6 +10,9 @@ struct FirstRunSetupView: View {
     @State private var status = ""
     @State private var failure = ""
     @State private var selectedPath = ""
+    private var bundledEnginePath: String? {
+        Bundle.main.url(forResource: "WallpaperEngine", withExtension: nil)?.path
+    }
     private var chinese: Bool {
         let language = UserDefaults.standard.string(forKey: "app_language") ?? "auto"
         return (language == "auto" ? Locale.preferredLanguages.first ?? "en" : language).hasPrefix("zh")
@@ -49,7 +52,7 @@ struct FirstRunSetupView: View {
                 }
             }
             Divider()
-            if step == 1 && !busy {
+            if step == 1 && !busy && bundledEnginePath == nil {
                 Text(text("选择你安装的 Wallpaper Engine 文件夹或 wallpaper64.exe。", "Select your Wallpaper Engine installation folder or wallpaper64.exe."))
                 Text(text("当前适配版本：2.8.42。应用会复制并核对所需组件，不会修改原始文件。", "Supported version: 2.8.42. Required components are copied and verified; your originals stay untouched."))
                     .font(.callout).foregroundStyle(.secondary)
@@ -77,7 +80,9 @@ struct FirstRunSetupView: View {
                     Button(text("进入壁纸管理", "Open wallpaper library"), action: onComplete).buttonStyle(.borderedProminent)
                 } else if !busy {
                     if step == 0 { Button(text("重试", "Retry"), action: prepare).buttonStyle(.borderedProminent) }
-                    else { Button(text("选择 Wallpaper Engine…", "Choose Wallpaper Engine…"), action: chooseEngine).buttonStyle(.borderedProminent) }
+                    else if let bundledEnginePath {
+                        Button(text("重试", "Retry")) { importEngine(bundledEnginePath) }.buttonStyle(.borderedProminent)
+                    } else { Button(text("选择 Wallpaper Engine…", "Choose Wallpaper Engine…"), action: chooseEngine).buttonStyle(.borderedProminent) }
                 }
             }
         }
@@ -89,7 +94,11 @@ struct FirstRunSetupView: View {
         busy = true; failure = ""; step = 0; progress = 0
         LWSetupPrepareComponents({ message, value in status = message ?? ""; progress = max(progress, value) }, { error in
             busy = false
-            if let error { failure = error } else { step = 1; progress = 0.25 }
+            if let error { failure = error }
+            else {
+                step = 1; progress = 0.25
+                if let bundledEnginePath { importEngine(bundledEnginePath) }
+            }
         })
     }
     private func chooseEngine() {
@@ -97,7 +106,10 @@ struct FirstRunSetupView: View {
         picker.canChooseDirectories = true; picker.canChooseFiles = true; picker.allowsMultipleSelection = false
         picker.title = text("选择 Wallpaper Engine 2.8.42", "Select Wallpaper Engine 2.8.42")
         guard picker.runModal() == .OK, let url = picker.url else { return }
-        selectedPath = url.path; failure = ""; busy = true; step = 1; progress = 0.25
+        importEngine(url.path)
+    }
+    private func importEngine(_ path: String) {
+        selectedPath = path; failure = ""; busy = true; step = 1; progress = 0.25
         let screens: [[String: Any]] = NSScreen.screens.compactMap { screen in
             guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
                   let uuid = CGDisplayCreateUUIDFromDisplayID(id.uint32Value)?.takeRetainedValue() else { return nil }

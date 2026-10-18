@@ -8,7 +8,7 @@
 2. 从 release 下载 `Livewallpaper-for-macOS-v2.0.1.dmg`，打开后将应用拖到“Applications / 应用程序”，再从“应用程序”启动。
 3. 如果首次启动被 macOS 阻止，在提示框点击“完成”，进入 **苹果菜单 → 系统设置 → 隐私与安全性 → 安全性**，找到 Livewallpaper 的拦截提示并点击 **仍要打开（Open Anyway）**。按提示验证身份，再点击 **打开**。详见 [Apple 说明](https://support.apple.com/zh-cn/102445)。
 4. 首次启动自动下载三个原始归档，合计 448,508,856 bytes（约 448.5 MB），逐一检查大小与 SHA-256，再按文件清单组合运行时并安装修复组件。
-5. 选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`，向导校验并复制所需引擎文件。
+5. 自动校验内置的 **Wallpaper Engine 2.8.42** 播放组件，并复制到独立环境。
 6. 自动为显示器配置独立 Wine 前缀、字体、Retina、coreaudio 与媒体模块，完成后进入壁纸库。
 
 
@@ -26,11 +26,13 @@
 | Template-1.0.21.tar.xz | [Sikarugir Template](https://github.com/Sikarugir-App/Template/releases/download/v1.0/Template-1.0.21.tar.xz) | `bbe996e4e4375318485953d0c7818b7b4b0a4dc1f13303bcc584f99f7602f78d` |
 | wine-stable-11.0_1-osx64.tar.xz | [Gcenx macOS Wine](https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.0_1/wine-stable-11.0_1-osx64.tar.xz) | `b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388` |
 
-这三个 vendor 归档不随本项目安装包再分发。应用内的 `RuntimeOverlay.tar.gz` 提供 DXMT（186a232）、Wine 媒体修复及自有适配组件；[独立源码归档](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/runtime-sources-v2.0.0) 中的 `Runtime-Adapter-Sources.tar.gz` 提供相关源码材料、补丁、构建说明和许可证。安装包不包含 Wallpaper Engine 或用户壁纸。
+这三个 vendor 归档不随本项目安装包再分发。应用内的 `RuntimeOverlay.tar.gz` 提供 DXMT（186a232）、Wine 媒体修复及自有适配组件；[独立源码归档](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/runtime-sources-v2.0.0) 中的 `Runtime-Adapter-Sources.tar.gz` 提供相关源码材料、补丁、构建说明和许可证。安装包另外内置已验证的 Wallpaper Engine 播放组件，用户壁纸单独保存。
 
 ## 构建公开安装包
 
 `tools/build_wine_preview.py` 构建前端。维护者使用已验证运行时与原版引擎生成校验清单，再由 `tools/build_online_setup_payload.py` 对照三个上游原始归档生成 schema 2 安装清单与 overlay。生成工具逐文件比对 SHA-256；vendor 文件必须能映射到原始归档成员，不能混入 overlay。详见该工具的 `--help`。
+
+打包工具的 `--engine /path/to/wallpaper_engine` 参数会仅复制安装清单中的引擎组件到应用资源 `WallpaperEngine`，逐文件检查复制前后的哈希。带有该目录的应用会自动完成引擎配置；普通前端仍支持手动选择导入。
 
 已有经验证的在线 payload 时：
 
@@ -39,6 +41,7 @@ python3 tools/build_wine_preview.py
 python3 tools/build_setup_bundle.py \
   --app 'build/preview/Livewallpaper for macOS.app' \
   --payload /path/to/online-payload \
+  --engine /path/to/wallpaper_engine \
   --output dist/Livewallpaper-for-macOS-v2.0.1.zip
 ```
 

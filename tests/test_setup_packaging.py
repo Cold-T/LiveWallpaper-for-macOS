@@ -1,4 +1,4 @@
-"""The public archive must match its manifest and cannot carry private engines."""
+"""The runtime overlay must match its manifest and exclude engine files."""
 import hashlib
 import io
 import json

@@ -26,7 +26,7 @@ LiveWallpaper 通过 `steamcmd` 下载 Workshop 项目，并以 `.weproject` 库
 
 ## 安装 v2.0.1
 
-系统要求：**Apple Silicon、macOS 14.6 及以上、网络连接和至少 6 GiB 可用空间**。请准备自己的 **Wallpaper Engine 2.8.42** 安装文件。
+系统要求：**Apple Silicon、macOS 14.6 及以上、网络连接和至少 6 GiB 可用空间**。
 
 ### 1. 安装 Rosetta 2
 
@@ -57,9 +57,9 @@ Wine 运行时需要 Rosetta 2。已安装的用户可继续下一步；首次�
 
 首次启动向导会从 Sikarugir 和 Gcenx 下载三个固定版本归档，合计约 **448.5 MB**，校验 SHA-256 后配置 Wine、DXMT 和媒体修复。请保持应用打开和网络连接，等待组件准备完成。
 
-### 4. 导入 Wallpaper Engine
+### 4. 完成播放配置
 
-选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`。向导会检查并复制所需引擎文件，创建独立播放环境，随后进入壁纸库。已有配置好的环境会直接进入壁纸库。
+安装包内置已验证的 **Wallpaper Engine 2.8.42** 播放组件。向导会校验内置文件，将其复制到独立播放环境，随后进入壁纸库。已有配置好的环境会直接进入壁纸库。
 
 重新安装后，应用会自动将保留的 Workshop 下载恢复到默认壁纸库。库入口保存在 `~/Library/Application Support/LiveWallpaper/ImportedWallpapers`，下载原文件保存在 `~/Library/Application Support/LiveWallpaper/SteamWorkshop/steamapps/workshop/content/431960`。也可在设置中选择其他壁纸文件夹，再选择显示器并点击壁纸播放。Scene 和 Web 项目使用 Wine；Video 项目及本地 MP4/MOV 使用 macOS 原生播放器。音量可在工具栏或菜单栏调整。
 
