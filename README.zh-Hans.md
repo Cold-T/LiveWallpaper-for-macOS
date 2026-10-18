@@ -102,4 +102,18 @@ LiveWallpaper 以 GNU General Public License version 3 or later 发布。许可�
 
 ## 卸载
 
-从 Release 下载 `uninstall-livewallpaper.command`，运行 `bash ~/Downloads/uninstall-livewallpaper.command`。脚本会先列出目标并询问确认；添加 `--dry-run` 可仅预览。请先从菜单栏退出应用。脚本将应用和专用 Wine、DXMT、媒体组件、引擎导入副本移到废纸篓，并重置设置；脚本会询问是否保留已下载壁纸，默认保留；选择删除时，应用默认 SteamWorkshop 目录中的下载壁纸会移到废纸篓。其他壁纸文件夹、原始引擎及共享依赖会保留。可使用 `--keep-wallpapers` 或 `--remove-wallpapers` 指定选择；`--yes` 默认保留壁纸。清空废纸篓后释放空间。不需要 sudo 或 Python。
+先退出 Livewallpaper，再在“终端”运行以下命令，直接从 GitHub 获取并执行卸载脚本：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Cold-T/LiveWallpaper-for-macOS/SwiftUI/tools/uninstall-livewallpaper.sh | /bin/bash
+```
+
+脚本会询问是否保留已下载壁纸（默认保留），列出清理目标，再确认卸载。应用、专用运行时和选择删除的下载壁纸会移到废纸篓，设置会重置。其他壁纸文件夹、原始引擎及共享依赖会保留。清空废纸篓后释放空间。
+
+仅预览清理内容：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Cold-T/LiveWallpaper-for-macOS/SwiftUI/tools/uninstall-livewallpaper.sh | /bin/bash -s -- --dry-run
+```
+
+可选参数：`--keep-wallpapers`、`--remove-wallpapers` 和 `--yes`。`--yes` 默认保留壁纸，配合 `--remove-wallpapers` 才会删除。壁纸删除范围为应用默认 SteamWorkshop 下载目录。

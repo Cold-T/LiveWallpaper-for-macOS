@@ -1,6 +1,14 @@
 #!/bin/bash
 # Livewallpaper for macOS uninstaller. No Python, Wine or developer tools needed.
 set -euo pipefail
+read_answer() {
+  # The script itself may arrive on stdin via curl | bash.
+  if ! read -r answer </dev/tty; then
+    echo 'Interactive uninstall requires a terminal. Use --dry-run to preview.' >&2
+    return 1
+  fi
+}
+
 main() {
 mode=ask
 dry_run=0
@@ -17,7 +25,7 @@ while [[ $# -gt 0 ]]; do
       fi
       wallpaper_policy=$policy ;;
     --help|-h)
-      printf '%s\n' 'Usage: bash uninstall-livewallpaper.command [--dry-run|--yes] [--keep-wallpapers|--remove-wallpapers]' 'Default: ask whether to keep downloaded wallpapers (default Yes), then confirm uninstall.' '--yes keeps wallpapers unless --remove-wallpapers is supplied.' '--dry-run previews the selected action without changes.'
+      printf '%s\n' 'Usage: bash uninstall-livewallpaper.sh [--dry-run|--yes] [--keep-wallpapers|--remove-wallpapers]' 'Default: ask whether to keep downloaded wallpapers (default Yes), then confirm uninstall.' '--yes keeps wallpapers unless --remove-wallpapers is supplied.' '--dry-run previews the selected action without changes.'
       return 0 ;;
     *) echo 'Unknown argument. Use --help.' >&2; return 2 ;;
   esac
@@ -54,7 +62,7 @@ if [[ "$wallpaper_policy" == ask ]]; then
   wallpaper_policy=keep
   if [[ "$mode" == ask && -d "$wallpapers" ]]; then
     printf 'Keep downloaded wallpapers? / 保留已下载壁纸？ [Y/n] '
-    read -r answer
+    read_answer
     case "$answer" in n|N|no|NO) wallpaper_policy=remove ;; esac
   fi
 fi
@@ -82,7 +90,7 @@ if printf '%s\n' "$processes" | /usr/bin/grep -E '/(LiveWallpaper|wallpaperdaemo
 fi
 if [[ "$mode" == ask ]]; then
   printf 'Continue? / 继续卸载？ [y/N] '
-  read -r answer
+  read_answer
   [[ "$answer" == y || "$answer" == Y ]] || { echo 'Cancelled.'; exit 0; }
 fi
 trash="$HOME/.Trash/Livewallpaper-uninstall-$(date +%Y%m%d-%H%M%S)-$$"
@@ -112,6 +120,6 @@ echo 'Uninstall complete. The next installation will start the setup wizard.'
 
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
   main "$@"
 fi

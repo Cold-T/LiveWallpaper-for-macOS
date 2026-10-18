@@ -105,4 +105,18 @@ LiveWallpaper is distributed under the GNU General Public License version 3 or l
 
 ## Uninstall
 
-Download `uninstall-livewallpaper.command` from the release and run `bash ~/Downloads/uninstall-livewallpaper.command`. It previews the targets and asks for confirmation. Use `--dry-run` to inspect only. Quit the app first. Managed runtime components and imported engine copies move to Trash; settings reset. The script asks whether to keep downloaded wallpapers (default: keep). Choosing removal moves downloads in the app’s default SteamWorkshop folder to Trash. Other wallpaper folders, original engine files and shared dependencies are preserved. Use `--keep-wallpapers` or `--remove-wallpapers` to specify the choice; `--yes` keeps downloads by default. Empty Trash to reclaim space. No sudo or Python is needed.
+Quit Livewallpaper, then run this command in Terminal to fetch and execute the uninstall script from GitHub:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Cold-T/LiveWallpaper-for-macOS/SwiftUI/tools/uninstall-livewallpaper.sh | /bin/bash
+```
+
+The script asks whether to keep downloaded wallpapers (default: keep), lists the cleanup targets, and asks for confirmation. The app, managed runtime and selected downloads move to Trash; settings reset. Other wallpaper folders, original engine files and shared dependencies are preserved. Empty Trash to reclaim disk space.
+
+To preview the cleanup:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Cold-T/LiveWallpaper-for-macOS/SwiftUI/tools/uninstall-livewallpaper.sh | /bin/bash -s -- --dry-run
+```
+
+Optional flags: `--keep-wallpapers`, `--remove-wallpapers`, and `--yes`. With `--yes`, downloaded wallpapers are kept unless `--remove-wallpapers` is also supplied. Wallpaper removal covers the app’s default SteamWorkshop download folder.

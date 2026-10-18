@@ -2,7 +2,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-SCRIPT=Path(__file__).resolve().parents[1]/'tools/uninstall-livewallpaper.command'
+SCRIPT=Path(__file__).resolve().parents[1]/'tools/uninstall-livewallpaper.sh'
 class UninstallOptionTests(unittest.TestCase):
     def run_script(self,*args):
         return subprocess.run(['/bin/bash',str(SCRIPT),*args],text=True,capture_output=True)
@@ -13,3 +13,8 @@ class UninstallOptionTests(unittest.TestCase):
             r=self.run_script(*args);self.assertEqual(r.returncode,0);self.assertIn('Downloaded Wallpaper Engine wallpapers will move to Trash:',r.stdout);self.assertIn('Dry run:',r.stdout)
     def test_conflicting_policies_fail_before_cleanup(self):
         r=self.run_script('--remove-wallpapers','--keep-wallpapers');self.assertEqual(r.returncode,2);self.assertIn('Choose either',r.stderr)
+
+    def test_piped_script_supports_dry_run(self):
+        r=subprocess.run(['/bin/bash','-s','--','--dry-run'],input=SCRIPT.read_text(),text=True,capture_output=True)
+        self.assertEqual(r.returncode,0,r.stderr)
+        self.assertIn('Dry run:',r.stdout)
