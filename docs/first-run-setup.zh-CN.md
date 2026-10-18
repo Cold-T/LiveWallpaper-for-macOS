@@ -8,7 +8,7 @@
 2. 从 release 下载 `Livewallpaper-for-macOS-v2.0.1.dmg`，打开后将应用拖到“Applications / 应用程序”，再从“应用程序”启动。
 3. 如果首次启动被 macOS 阻止，在提示框点击“完成”，进入 **苹果菜单 → 系统设置 → 隐私与安全性 → 安全性**，找到 Livewallpaper 的拦截提示并点击 **仍要打开（Open Anyway）**。按提示验证身份，再点击 **打开**。详见 [Apple 说明](https://support.apple.com/zh-cn/102445)。
 4. 首次启动自动下载三个原始归档，合计 448,508,856 bytes（约 448.5 MB），逐一检查大小与 SHA-256，再按文件清单组合运行时并安装修复组件。
-5. 自动校验内置的 **Wallpaper Engine 2.8.42** 播放组件，并复制到独立环境。
+5. 组件内置版会自动校验 **Wallpaper Engine 2.8.42** 播放文件并复制到独立环境；显示“选择 Wallpaper Engine”的版本则需选择原版安装目录或 `wallpaper64.exe`。
 6. 自动为显示器配置独立 Wine 前缀、字体、Retina、coreaudio 与媒体模块，完成后进入壁纸库。
 
 

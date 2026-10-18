@@ -59,7 +59,7 @@ Wine 运行时需要 Rosetta 2。已安装的用户可继续下一步；首次�
 
 ### 4. 完成播放配置
 
-安装包内置已验证的 **Wallpaper Engine 2.8.42** 播放组件。向导会校验内置文件，将其复制到独立播放环境，随后进入壁纸库。已有配置好的环境会直接进入壁纸库。
+组件内置版会自动校验并配置 **Wallpaper Engine 2.8.42** 播放文件。如果当前版本显示“选择 Wallpaper Engine”，请选择自己的 2.8.42 安装目录或 `wallpaper64.exe`。向导会校验并复制文件到独立环境，随后进入壁纸库。已有配置好的环境会直接进入壁纸库。
 
 重新安装后，应用会自动将保留的 Workshop 下载恢复到默认壁纸库。库入口保存在 `~/Library/Application Support/LiveWallpaper/ImportedWallpapers`，下载原文件保存在 `~/Library/Application Support/LiveWallpaper/SteamWorkshop/steamapps/workshop/content/431960`。也可在设置中选择其他壁纸文件夹，再选择显示器并点击壁纸播放。Scene 和 Web 项目使用 Wine；Video 项目及本地 MP4/MOV 使用 macOS 原生播放器。音量可在工具栏或菜单栏调整。
 

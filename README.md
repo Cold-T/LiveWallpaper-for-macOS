@@ -60,7 +60,7 @@ The first-launch wizard downloads three fixed archives from Sikarugir and Gcenx,
 
 ### 4. Finish playback setup
 
-The installation package includes the verified **Wallpaper Engine 2.8.42** playback component set. The wizard checks these bundled files, copies them into an isolated playback environment, and opens the wallpaper library. Existing configured environments open directly into the library.
+Component-bundled builds include the verified **Wallpaper Engine 2.8.42** playback files and configure them automatically. If your build shows **Choose Wallpaper Engine**, select your 2.8.42 installation folder or `wallpaper64.exe`. The wizard verifies and copies the files into an isolated playback environment, then opens the wallpaper library. Existing configured environments open directly into the library.
 
 The app automatically restores retained Workshop downloads into its default library after reinstalling. Library entries are stored in `~/Library/Application Support/LiveWallpaper/ImportedWallpapers`; downloaded project files remain in `~/Library/Application Support/LiveWallpaper/SteamWorkshop/steamapps/workshop/content/431960`. You can choose another wallpaper folder in Settings. Select a display and click a wallpaper to play it. Scene and Web projects use Wine; Video projects and local MP4/MOV files use the native macOS player. Adjust wallpaper volume from the toolbar or menu bar.
 
