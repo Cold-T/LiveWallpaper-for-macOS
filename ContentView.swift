@@ -1778,7 +1778,8 @@ class WallpaperViewModel: ObservableObject {
                     let preview = (project["preview"] as? String).map { directory.appendingPathComponent($0).standardizedFileURL }
                     let safePreview = preview.flatMap { $0.path.hasPrefix(directory.standardizedFileURL.path + "/") ? $0.path : nil } ?? ""
                     var item = VideoItem(filename: project["title"] as? String ?? f, path: full, thumbnailPath: safePreview)
-                    item.quality = "WE · " + (project["type"] as? String ?? "Scene")
+                    let type = project["type"] as? String ?? "Scene"
+                    item.quality = type.lowercased() == "video" ? "Video" : "WE · " + type
                     return item
                 }
                 return VideoItem(filename: f, path: full, thumbnailPath: thumbPath)

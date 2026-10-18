@@ -18,7 +18,7 @@ LiveWallpaper 与 Wallpaper Engine Team、Valve、Steam 或任何 Steam Workshop
 
 ## Workshop 导入
 
-LiveWallpaper 通过 `steamcmd` 下载 Workshop 项目，并以 `.weproject` 库条目保留完整项目。Scene / Web / Video 项目路由到原版引擎；裸 `.mp4` / `.mov` 仍使用原生播放器。Scene 已有实机验证，Web / Video 项目的覆盖范围仍有限，应用壁纸不自动执行。
+LiveWallpaper 通过 `steamcmd` 下载 Workshop 项目，并以 `.weproject` 库条目保留完整项目。Scene / Web 项目路由到原版引擎；Video 项目与裸 `.mp4` / `.mov` 使用 v1.1.1 的 macOS 原生播放器。Scene 已有实机验证，Web / Video 项目的覆盖范围仍有限，应用壁纸不自动执行。
 
 下载功能需要 Python、SteamCMD 及自己的 Steam 登录；这些下载依赖尚未全部内置。
 

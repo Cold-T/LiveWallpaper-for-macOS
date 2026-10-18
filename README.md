@@ -19,7 +19,7 @@ LiveWallpaper is not affiliated with, endorsed by, or sponsored by Wallpaper Eng
 
 ## Workshop import
 
-Workshop downloads retain the complete project through a `.weproject` library entry. Scene / Web / Video projects route to the original engine; standalone `.mp4` / `.mov` files use the native player. Scene playback has been tested on hardware; Web / Video project coverage remains limited. Application wallpapers are not launched automatically.
+Workshop downloads retain the complete project through a `.weproject` library entry. Scene / Web projects route to the original engine; Video projects and standalone `.mp4` / `.mov` files use the v1.1.1 native macOS player. Scene playback has been tested on hardware; Web / Video project coverage remains limited. Application wallpapers are not launched automatically.
 
 Workshop downloads require Python, SteamCMD and your own Steam login. These download dependencies are not all bundled.
 

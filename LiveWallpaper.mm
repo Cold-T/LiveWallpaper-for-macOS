@@ -992,6 +992,15 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 
   NSString *project = LWProjectJSON(videoPath);
   if (project) {
+    NSError *videoError = nil;
+    NSString *nativeVideo = LWNativeVideoProjectFile(project, &videoError);
+    if (videoError) {
+      [NSNotificationCenter.defaultCenter postNotificationName:@"LWWinePlaybackError" object:videoError.localizedDescription];
+      return;
+    }
+    if (nativeVideo) project = nil;
+  }
+  if (project) {
     NSArray *targets = displayIDs.count ? displayIDs : [NSScreen.screens valueForKeyPath:@"deviceDescription.NSScreenNumber"];
     for (NSNumber *number in targets) {
       NSScreen *screen = [self screenForDisplayID:number.unsignedIntValue];
@@ -1141,7 +1150,10 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
                    imagePath:(NSString *)imagePath
                    displayID:(CGDirectDisplayID)displayID {
   NSString *uuid = [NSString stringWithUTF8String:DisplayUUIDFromID(displayID).c_str()];
-  [_winePlayback stopDisplay:uuid];
+  if (![_winePlayback stopDisplay:uuid]) return;
+  NSString *project = LWProjectJSON(videoPath);
+  NSString *mediaPath = project ? LWNativeVideoProjectFile(project, nil) : videoPath;
+  if (!mediaPath.length) return;
   NSString *daemonRelativePath = @"Contents/MacOS/wallpaperdaemon";
   NSString *appPath = [[NSBundle mainBundle] bundlePath];
   NSString *daemonPath =
@@ -1176,7 +1188,7 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 
   const char *daemonPathC = [daemonPath UTF8String];
   const char *args[] = {daemonPathC,
-                        [videoPath UTF8String],
+                        [mediaPath UTF8String],
                         [imagePath UTF8String],
                         [volumeStr UTF8String],
                         [scaleMode UTF8String],
