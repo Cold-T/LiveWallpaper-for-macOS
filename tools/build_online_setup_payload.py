@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import tarfile
 
-from build_setup_payload import sha
+from build_setup_payload import sha, engine_inventory
 
 WINE_URL = 'https://github.com/Sikarugir-App/Engines/releases/download/v1.0/WS12WineSikarugir11.0_1.tar.xz'
 WINE_SHA = '67e29fb3d74f363af39c69ba11f9b13a79812c5db07cf4748672658e4a200a0e'
@@ -43,6 +43,7 @@ def build(args):
     if output.is_relative_to(runtime) or runtime.is_relative_to(output):
         raise ValueError('Output overlaps runtime')
     manifest = json.loads(Path(args.manifest).read_text())
+    manifest['engine_files'] = engine_inventory(Path(args.engine))
     downloads = [('wine', Path(args.wine_archive), WINE_URL, WINE_SHA),
                  ('template', Path(args.template_archive), args.template_url, args.template_sha256),
                  ('fallback', Path(args.fallback_archive), FALLBACK_URL, FALLBACK_SHA)]
@@ -120,7 +121,7 @@ def build(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('runtime', 'manifest', 'wine-archive', 'template-archive', 'fallback-archive',
+    for name in ('runtime', 'engine', 'manifest', 'wine-archive', 'template-archive', 'fallback-archive',
                  'template-url', 'template-sha256', 'output'):
         parser.add_argument('--' + name, required=True)
     parser.add_argument('--licenses')
