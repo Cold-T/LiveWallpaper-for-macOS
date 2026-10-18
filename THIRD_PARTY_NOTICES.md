@@ -29,6 +29,6 @@ The app carries adapter notices and full license texts. The [runtime source arch
 
 Vendor origins: [Sikarugir Wine revision1](https://github.com/Sikarugir-App/Engines/releases/download/v1.0/WS12WineSikarugir11.0_1.tar.xz), [Template1.0.21](https://github.com/Sikarugir-App/Template/releases/download/v1.0/Template-1.0.21.tar.xz), [Gcenx native-library archive](https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.0_1/wine-stable-11.0_1-osx64.tar.xz).
 
-## Bundled Wallpaper Engine components
+## User-supplied Wallpaper Engine
 
-The component-bundled edition includes unmodified Wallpaper Engine 2.8.42 executable and resource files under their original authors’ licenses. `SetupRuntime.json` lists the selected files and their SHA-256 hashes. Their included third-party notices are retained under `WallpaperEngine/bin/licenses` and within the selected resource directories. The LiveWallpaper GPL license applies to this project's own code.
+Users import their own Wallpaper Engine 2.8.42 installation. Those executable and resource files retain their original authors’ licenses. The LiveWallpaper GPL license applies to this project's own code.

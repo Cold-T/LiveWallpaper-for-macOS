@@ -27,7 +27,7 @@ Use Workshop content only through your own Steam account and only when you have 
 
 ## Install v2.0.1
 
-Requirements: **Apple Silicon, macOS 14.6 or later, an internet connection, and at least 6 GiB of free disk space**.
+Requirements: **Apple Silicon, macOS 14.6 or later, an internet connection, and at least 6 GiB of free disk space**. Have your **Wallpaper Engine 2.8.42** installation files ready.
 
 ### 1. Install Rosetta 2
 
@@ -58,9 +58,9 @@ Try launching the app from Applications first so its blocked-launch entry appear
 
 The first-launch wizard downloads three fixed archives from Sikarugir and Gcenx, about **448.5 MB** in total. It verifies their SHA-256 checksums and configures Wine, DXMT, and the media fixes. Keep the app open and connected to the internet until this step finishes.
 
-### 4. Finish playback setup
+### 4. Import Wallpaper Engine
 
-Component-bundled builds include the verified **Wallpaper Engine 2.8.42** playback files and configure them automatically. If your build shows **Choose Wallpaper Engine**, select your 2.8.42 installation folder or `wallpaper64.exe`. The wizard verifies and copies the files into an isolated playback environment, then opens the wallpaper library. Existing configured environments open directly into the library.
+Select your **Wallpaper Engine 2.8.42** installation folder or `wallpaper64.exe`. The wizard verifies and copies the required files into an isolated playback environment, then opens the wallpaper library. Existing configured environments open directly into the library.
 
 The app automatically restores retained Workshop downloads into its default library after reinstalling. Library entries are stored in `~/Library/Application Support/LiveWallpaper/ImportedWallpapers`; downloaded project files remain in `~/Library/Application Support/LiveWallpaper/SteamWorkshop/steamapps/workshop/content/431960`. You can choose another wallpaper folder in Settings. Select a display and click a wallpaper to play it. Scene and Web projects use Wine; Video projects and local MP4/MOV files use the native macOS player. Adjust wallpaper volume from the toolbar or menu bar.
 
