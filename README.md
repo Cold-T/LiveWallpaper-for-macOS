@@ -27,13 +27,35 @@ Use Workshop content only through your own Steam account and only when you have 
 
 ## Install v2.0.0
 
-Download `Livewallpaper-for-macOS-v2.0.0.dmg` from the [v2.0.0 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0), open the DMG, and drag `Livewallpaper for macOS.app` onto the Applications shortcut. Requires Apple Silicon, macOS 14.6 or later, Rosetta 2, and at least 6 GiB of free disk space. The app is ad-hoc signed and is not notarized by Apple.
+Requirements: **Apple Silicon, macOS 14.6 or later, an internet connection, and at least 6 GiB of free disk space**. Have your **Wallpaper Engine 2.8.42** installation files ready.
 
-On first launch, the setup wizard downloads three fixed upstream archives (about 448.5 MB in total) directly from the Sikarugir and Gcenx GitHub releases. It verifies their SHA-256 checksums, assembles the Wine runtime, and applies the bundled DXMT and media fixes. The application includes about 16 MB of runtime adapters and notices; it does not include the commercial Wallpaper Engine or wallpapers.
+### 1. Install Rosetta 2
 
-Choose your own **Wallpaper Engine 2.8.42** installation folder or `wallpaper64.exe`. Setup checks and imports the required files, prepares isolated playback environments, then opens the wallpaper library. Your original files are left untouched. Existing usable installations skip setup. Playback setup does not require Python or Xcode; Workshop downloads additionally require Python, SteamCMD and your own Steam login. See the [first-launch guide (Chinese)](docs/first-run-setup.zh-CN.md).
+The Wine runtime uses Rosetta 2. If Rosetta is already installed, continue to the next step. Otherwise, open Terminal and run:
 
-The [separate source archive](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/runtime-sources-v2.0.0) provides the source materials, patches, build instructions and license notices for the bundled runtime adapters. Vendor Wine and media framework archives are downloaded from their original upstream releases during setup.
+```sh
+/usr/sbin/softwareupdate --install-rosetta
+```
+
+Follow the prompts to complete installation. See [Apple's Rosetta guide](https://support.apple.com/en-us/102527). Install Rosetta before starting the app's setup wizard.
+
+### 2. Install Livewallpaper
+
+Download `Livewallpaper-for-macOS-v2.0.0.dmg` from the [v2.0.0 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0), open it, and drag `Livewallpaper for macOS.app` to **Applications**. Launch the app from Applications.
+
+### 3. Set up the playback runtime
+
+The first-launch wizard downloads three fixed archives from Sikarugir and Gcenx, about **448.5 MB** in total. It verifies their SHA-256 checksums and configures Wine, DXMT, and the media fixes. Keep the app open and connected to the internet until this step finishes.
+
+### 4. Import Wallpaper Engine
+
+Select your **Wallpaper Engine 2.8.42** installation folder or `wallpaper64.exe`. The wizard checks and copies the required engine files, prepares an isolated playback environment, and opens the wallpaper library. Existing configured environments open directly into the library.
+
+In Settings, select a wallpaper folder, then choose a display and click a wallpaper to play it. Scene and Web projects use Wine; Video projects and local MP4/MOV files use the native macOS player. Adjust wallpaper volume from the toolbar or menu bar.
+
+Workshop downloads additionally require Python, SteamCMD, and your own Steam login. See the [first-launch guide (Chinese)](docs/first-run-setup.zh-CN.md) for more setup details.
+
+Runtime adapter sources, patches, build instructions, and license notices are available in the [source archive](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/runtime-sources-v2.0.0).
 
 ## Build from source
 

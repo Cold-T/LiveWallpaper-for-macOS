@@ -26,13 +26,35 @@ LiveWallpaper 通过 `steamcmd` 下载 Workshop 项目，并以 `.weproject` 库
 
 ## 安装 v2.0.0
 
-从 [v2.0.0 Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0) 下载 `Livewallpaper-for-macOS-v2.0.0.dmg`，打开 DMG 后将 `Livewallpaper for macOS.app` 拖到其中的“Applications / 应用程序”快捷方式。需要 Apple Silicon、macOS 14.6 及以上、Rosetta 2 和至少 6 GiB 可用空间；当前包为 ad-hoc 签名，未做 Apple 公证。
+系统要求：**Apple Silicon、macOS 14.6 及以上、网络连接和至少 6 GiB 可用空间**。请准备自己的 **Wallpaper Engine 2.8.42** 安装文件。
 
-首次启动会从 Sikarugir 和 Gcenx 的 GitHub 原始发布页自动下载三个固定版本归档，合计约 448.5 MB，逐一校验 SHA-256 后组合 Wine 运行时并应用 DXMT 与媒体修复。应用内附约 16 MB 的运行时适配组件及许可文件，不包含商业 Wallpaper Engine 或壁纸。
+### 1. 安装 Rosetta 2
 
-选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`，向导自动校验、导入文件并配置独立播放环境，完成后进入壁纸库。原文件不会被改写；已有可用环境会自动跳过配置。播放环境安装不需要 Python 或 Xcode；Workshop 下载另需 Python、SteamCMD 和自己的 Steam 登录。详见 [首次启动说明](docs/first-run-setup.zh-CN.md)。
+Wine 运行时需要 Rosetta 2。已安装的用户可继续下一步；首次安装请打开“终端”，运行：
 
-[独立源码归档](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/runtime-sources-v2.0.0) 提供随包适配组件的源码材料、补丁、构建说明和许可文件。Vendor Wine 与媒体框架归档由首次安装流程直接从各自上游发布页下载。
+```sh
+/usr/sbin/softwareupdate --install-rosetta
+```
+
+按终端提示完成安装，再启动应用的配置向导。详见 [Apple 的 Rosetta 安装说明](https://support.apple.com/zh-cn/102527)。
+
+### 2. 安装 Livewallpaper
+
+从 [v2.0.0 Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0) 下载 `Livewallpaper-for-macOS-v2.0.0.dmg`，打开后将 `Livewallpaper for macOS.app` 拖到 **Applications / 应用程序**，再从“应用程序”启动。
+
+### 3. 配置播放环境
+
+首次启动向导会从 Sikarugir 和 Gcenx 下载三个固定版本归档，合计约 **448.5 MB**，校验 SHA-256 后配置 Wine、DXMT 和媒体修复。请保持应用打开和网络连接，等待组件准备完成。
+
+### 4. 导入 Wallpaper Engine
+
+选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`。向导会检查并复制所需引擎文件，创建独立播放环境，随后进入壁纸库。已有配置好的环境会直接进入壁纸库。
+
+在设置中选择壁纸文件夹，再选择显示器并点击壁纸播放。Scene 和 Web 项目使用 Wine；Video 项目及本地 MP4/MOV 使用 macOS 原生播放器。音量可在工具栏或菜单栏调整。
+
+Workshop 下载另需 Python、SteamCMD 和自己的 Steam 登录。更多配置细节见 [首次启动说明](docs/first-run-setup.zh-CN.md)。
+
+适配组件的源码、补丁、构建说明和许可证见[独立源码归档](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/runtime-sources-v2.0.0)。
 
 ## 从源码编译
 
