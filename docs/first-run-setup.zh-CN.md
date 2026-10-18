@@ -1,11 +1,11 @@
 # 首次启动安装向导
 
-公开 v2.0.0 安装包采用在线配置：应用内附约 16 MB 的 DXMT、媒体修复、自有播放适配组件及许可文件；首次运行从原作者发布页下载固定版本 Wine 和媒体依赖。需要 Apple Silicon、macOS 14.6+、Rosetta 2、网络连接和至少 6 GiB 可用空间。播放环境配置不需要 Python 或 Xcode。
+公开 v2.0.1 安装包采用在线配置：应用内附约 16 MB 的 DXMT、媒体修复、自有播放适配组件及许可文件；首次运行从原作者发布页下载固定版本 Wine 和媒体依赖。需要 Apple Silicon、macOS 14.6+、Rosetta 2、网络连接和至少 6 GiB 可用空间。播放环境配置不需要 Python 或 Xcode。
 
 ## 安装流程
 
 1. 先准备 Rosetta 2。首次安装可在终端运行 `/usr/sbin/softwareupdate --install-rosetta`，按系统提示完成。
-2. 从 release 下载 `Livewallpaper-for-macOS-v2.0.0.dmg`，打开后将应用拖到“Applications / 应用程序”，再从“应用程序”启动。
+2. 从 release 下载 `Livewallpaper-for-macOS-v2.0.1.dmg`，打开后将应用拖到“Applications / 应用程序”，再从“应用程序”启动。
 3. 如果首次启动被 macOS 阻止，在提示框点击“完成”，进入 **苹果菜单 → 系统设置 → 隐私与安全性 → 安全性**，找到 Livewallpaper 的拦截提示并点击 **仍要打开（Open Anyway）**。按提示验证身份，再点击 **打开**。详见 [Apple 说明](https://support.apple.com/zh-cn/102445)。
 4. 首次启动自动下载三个原始归档，合计 448,508,856 bytes（约 448.5 MB），逐一检查大小与 SHA-256，再按文件清单组合运行时并安装修复组件。
 5. 选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`，向导校验并复制所需引擎文件。
@@ -39,7 +39,7 @@ python3 tools/build_wine_preview.py
 python3 tools/build_setup_bundle.py \
   --app 'build/preview/Livewallpaper for macOS.app' \
   --payload /path/to/online-payload \
-  --output dist/Livewallpaper-for-macOS-v2.0.0.zip
+  --output dist/Livewallpaper-for-macOS-v2.0.1.zip
 ```
 
 打包工具校验 overlay 哈希、归档路径、链接和文件来源唯一性，拒绝个人引擎一体包，使用 ditto 保留 macOS 包权限并生成 ZIP 与校验文件。源码包需要随正式安装包一起提供。

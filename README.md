@@ -25,7 +25,7 @@ Workshop downloads require Python, SteamCMD and your own Steam login. These down
 
 Use Workshop content only through your own Steam account and only when you have the right to access it. LiveWallpaper does not include, host, or redistribute Workshop content; users are responsible for complying with Steam's terms and each Workshop item's license or creator permissions.
 
-## Install v2.0.0
+## Install v2.0.1
 
 Requirements: **Apple Silicon, macOS 14.6 or later, an internet connection, and at least 6 GiB of free disk space**. Have your **Wallpaper Engine 2.8.42** installation files ready.
 
@@ -41,7 +41,7 @@ Follow the prompts to complete installation. See [Apple's Rosetta guide](https:/
 
 ### 2. Install Livewallpaper
 
-Download `Livewallpaper-for-macOS-v2.0.0.dmg` from the [v2.0.0 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0), open it, and drag `Livewallpaper for macOS.app` to **Applications**. Launch the app from Applications.
+Download `Livewallpaper-for-macOS-v2.0.1.dmg` from the [v2.0.1 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.1), open it, and drag `Livewallpaper for macOS.app` to **Applications**. Launch the app from Applications.
 
 #### Allow the app to open
 

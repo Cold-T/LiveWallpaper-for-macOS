@@ -24,7 +24,7 @@ LiveWallpaper 通过 `steamcmd` 下载 Workshop 项目，并以 `.weproject` 库
 
 请只通过你自己的 Steam 账号使用你有权访问的 Workshop 内容。LiveWallpaper 不内置、不托管、也不再分发 Workshop 内容；用户需要自行遵守 Steam 条款以及每个 Workshop 项目的许可或创作者授权。
 
-## 安装 v2.0.0
+## 安装 v2.0.1
 
 系统要求：**Apple Silicon、macOS 14.6 及以上、网络连接和至少 6 GiB 可用空间**。请准备自己的 **Wallpaper Engine 2.8.42** 安装文件。
 
@@ -40,7 +40,7 @@ Wine 运行时需要 Rosetta 2。已安装的用户可继续下一步；首次�
 
 ### 2. 安装 Livewallpaper
 
-从 [v2.0.0 Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0) 下载 `Livewallpaper-for-macOS-v2.0.0.dmg`，打开后将 `Livewallpaper for macOS.app` 拖到 **Applications / 应用程序**，再从“应用程序”启动。
+从 [v2.0.1 Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.1) 下载 `Livewallpaper-for-macOS-v2.0.1.dmg`，打开后将 `Livewallpaper for macOS.app` 拖到 **Applications / 应用程序**，再从“应用程序”启动。
 
 #### 允许首次打开
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Package a frontend with the engine-free first-launch payload."""
-import argparse, hashlib, json, plistlib, posixpath, subprocess, tarfile, tempfile
+import argparse, hashlib, json, posixpath, subprocess, tarfile, tempfile
 from build_setup_payload import RUNTIME_ENTRIES
 from pathlib import Path
 
@@ -72,7 +72,6 @@ def build(app,payload,output):
         subprocess.run(['/bin/cp','-cR',str(app),str(stage)],check=True)
         for name in (('RuntimeOverlay.tar.gz' if meta['schema'] == 2 else 'FreeRuntime.tar.gz'), 'SetupRuntime.json'):
             subprocess.run(['/bin/cp','-c',str(payload/name),str(stage/'Contents/Resources'/name)],check=True)
-        p=stage/'Contents/Info.plist';info=plistlib.loads(p.read_bytes());info['CFBundleVersion']='202';p.write_bytes(plistlib.dumps(info))
         subprocess.run(['/usr/bin/xattr','-cr',str(stage)],check=True)
         subprocess.run(['/usr/bin/codesign','--force','--deep','--sign','-',str(stage)],check=True)
         subprocess.run(['/usr/bin/codesign','--verify','--deep','--strict',str(stage)],check=True)

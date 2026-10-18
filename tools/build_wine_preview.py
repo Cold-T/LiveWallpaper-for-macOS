@@ -96,7 +96,7 @@ def build(work):
     (APP / "Contents/Info.plist").write_bytes(plistlib.dumps({
         "CFBundleExecutable": "LiveWallpaper", "CFBundleIdentifier": "uk.coldt.LiveWallpaper.WinePreview",
         "CFBundleName": "Livewallpaper for macOS", "CFBundleDisplayName": "Livewallpaper for macOS",
-        "CFBundlePackageType": "APPL", "CFBundleShortVersionString": "2.0.0", "CFBundleVersion": "200",
+        "CFBundlePackageType": "APPL", "CFBundleShortVersionString": "2.0.1", "CFBundleVersion": "205",
         "LSUIElement": True, "NSHighResolutionCapable": True, "NSPrincipalClass": "NSApplication",
         "CFBundleIconFile": "LiveWallpaperIcon", "LSMinimumSystemVersion": "14.6",
     }))
@@ -110,7 +110,7 @@ def build(work):
         run(["/usr/bin/codesign", "--verify", "--deep", "--strict", stage])
         distribution = ROOT / "dist"
         distribution.mkdir(exist_ok=True)
-        shutil.make_archive(str(distribution / "Livewallpaper-for-macOS-v2.0.0"), "zip", temporary)
+        shutil.make_archive(str(distribution / "Livewallpaper-for-macOS-v2.0.1"), "zip", temporary)
         shutil.copytree(stage, APP, dirs_exist_ok=True, copy_function=copy_without_xattrs)
     print(APP)
 
