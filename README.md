@@ -43,6 +43,17 @@ Follow the prompts to complete installation. See [Apple's Rosetta guide](https:/
 
 Download `Livewallpaper-for-macOS-v2.0.0.dmg` from the [v2.0.0 release](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0), open it, and drag `Livewallpaper for macOS.app` to **Applications**. Launch the app from Applications.
 
+#### Allow the app to open
+
+If macOS blocks the first launch with an “Apple could not verify” message:
+
+1. Click **Done** in the alert.
+2. Open **Apple menu → System Settings → Privacy & Security**.
+3. Scroll down to **Security**. Find the message about **Livewallpaper for macOS** and click **Open Anyway**.
+4. Authenticate if prompted, then click **Open** in the confirmation dialog.
+
+Try launching the app from Applications first so its blocked-launch entry appears in Settings. These steps are also covered in [Apple's opening guide](https://support.apple.com/en-us/102445).
+
 ### 3. Set up the playback runtime
 
 The first-launch wizard downloads three fixed archives from Sikarugir and Gcenx, about **448.5 MB** in total. It verifies their SHA-256 checksums and configures Wine, DXMT, and the media fixes. Keep the app open and connected to the internet until this step finishes.

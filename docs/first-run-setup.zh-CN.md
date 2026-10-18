@@ -4,10 +4,13 @@
 
 ## 安装流程
 
-1. 从 release 下载 `Livewallpaper-for-macOS-v2.0.0.zip`，解压并将应用移入“应用程序”。当前包为 ad-hoc 签名，未做 Apple 公证。
-2. 首次启动自动下载三个原始归档，合计 448,508,856 bytes（约 448.5 MB），逐一检查大小与 SHA-256，再按文件清单组合运行时并安装修复组件。
-3. 选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`。向导校验并复制引擎程序、assets、bin、plugins、thirdparty、ui、locale、distribution、原版 defaultprojects/templates 和启动辅助文件，不复制个人 projects/myprojects、Workshop 内容或原版 config.json。
-4. 自动为显示器配置独立 Wine 前缀、字体、Retina、coreaudio 与媒体模块，完成后进入壁纸库。
+1. 先准备 Rosetta 2。首次安装可在终端运行 `/usr/sbin/softwareupdate --install-rosetta`，按系统提示完成。
+2. 从 release 下载 `Livewallpaper-for-macOS-v2.0.0.dmg`，打开后将应用拖到“Applications / 应用程序”，再从“应用程序”启动。
+3. 如果首次启动被 macOS 阻止，在提示框点击“完成”，进入 **苹果菜单 → 系统设置 → 隐私与安全性 → 安全性**，找到 Livewallpaper 的拦截提示并点击 **仍要打开（Open Anyway）**。按提示验证身份，再点击 **打开**。详见 [Apple 说明](https://support.apple.com/zh-cn/102445)。
+4. 首次启动自动下载三个原始归档，合计 448,508,856 bytes（约 448.5 MB），逐一检查大小与 SHA-256，再按文件清单组合运行时并安装修复组件。
+5. 选择自己的 **Wallpaper Engine 2.8.42** 安装目录或 `wallpaper64.exe`，向导校验并复制所需引擎文件。
+6. 自动为显示器配置独立 Wine 前缀、字体、Retina、coreaudio 与媒体模块，完成后进入壁纸库。
+
 
 已配置且可用的安装直接进入主界面。原引擎文件不会被改写。版本不符、文件缺失、校验失败、磁盘不足、并发安装和命令超时会显示错误，配置成功后才写入应用运行时设置。首次媒体初始化可能需要数十秒。
 
@@ -23,7 +26,7 @@
 | Template-1.0.21.tar.xz | [Sikarugir Template](https://github.com/Sikarugir-App/Template/releases/download/v1.0/Template-1.0.21.tar.xz) | `bbe996e4e4375318485953d0c7818b7b4b0a4dc1f13303bcc584f99f7602f78d` |
 | wine-stable-11.0_1-osx64.tar.xz | [Gcenx macOS Wine](https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.0_1/wine-stable-11.0_1-osx64.tar.xz) | `b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388` |
 
-这三个 vendor 归档不随本项目安装包再分发。应用内的 `RuntimeOverlay.tar.gz` 提供 DXMT（186a232）、Wine 媒体修复及自有适配组件；同 release 的 `Runtime-Adapter-Sources.tar.gz` 提供相关源码材料、补丁、构建说明和许可证。安装包不包含 Wallpaper Engine 或用户壁纸。
+这三个 vendor 归档不随本项目安装包再分发。应用内的 `RuntimeOverlay.tar.gz` 提供 DXMT（186a232）、Wine 媒体修复及自有适配组件；[独立源码归档](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/runtime-sources-v2.0.0) 中的 `Runtime-Adapter-Sources.tar.gz` 提供相关源码材料、补丁、构建说明和许可证。安装包不包含 Wallpaper Engine 或用户壁纸。
 
 ## 构建公开安装包
 

@@ -42,6 +42,17 @@ Wine 运行时需要 Rosetta 2。已安装的用户可继续下一步；首次�
 
 从 [v2.0.0 Releases](https://github.com/Cold-T/LiveWallpaper-for-macOS/releases/tag/v2.0.0) 下载 `Livewallpaper-for-macOS-v2.0.0.dmg`，打开后将 `Livewallpaper for macOS.app` 拖到 **Applications / 应用程序**，再从“应用程序”启动。
 
+#### 允许首次打开
+
+首次启动若出现“Apple 无法验证”提示：
+
+1. 在提示框点击 **完成（Done）**。
+2. 打开 **苹果菜单 → 系统设置 → 隐私与安全性（Privacy & Security）**。
+3. 向下滚动到 **安全性（Security）**，找到 **Livewallpaper for macOS** 被阻止的提示，点击 **仍要打开（Open Anyway）**。
+4. 按提示验证身份，再在确认框点击 **打开（Open）**。
+
+请先从“应用程序”尝试启动一次，系统设置才会显示对应的拦截记录。详见 [Apple 的打开应用说明](https://support.apple.com/zh-cn/102445)。
+
 ### 3. 配置播放环境
 
 首次启动向导会从 Sikarugir 和 Gcenx 下载三个固定版本归档，合计约 **448.5 MB**，校验 SHA-256 后配置 Wine、DXMT 和媒体修复。请保持应用打开和网络连接，等待组件准备完成。
