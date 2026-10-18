@@ -62,7 +62,7 @@ The first-launch wizard downloads three fixed archives from Sikarugir and Gcenx,
 
 Select your **Wallpaper Engine 2.8.42** installation folder or `wallpaper64.exe`. The wizard checks and copies the required engine files, prepares an isolated playback environment, and opens the wallpaper library. Existing configured environments open directly into the library.
 
-In Settings, select a wallpaper folder, then choose a display and click a wallpaper to play it. Scene and Web projects use Wine; Video projects and local MP4/MOV files use the native macOS player. Adjust wallpaper volume from the toolbar or menu bar.
+The app automatically restores retained Workshop downloads into its default library after reinstalling. Library entries are stored in `~/Library/Application Support/LiveWallpaper/ImportedWallpapers`; downloaded project files remain in `~/Library/Application Support/LiveWallpaper/SteamWorkshop/steamapps/workshop/content/431960`. You can choose another wallpaper folder in Settings. Select a display and click a wallpaper to play it. Scene and Web projects use Wine; Video projects and local MP4/MOV files use the native macOS player. Adjust wallpaper volume from the toolbar or menu bar.
 
 Workshop downloads additionally require Python, SteamCMD, and your own Steam login. See the [first-launch guide (Chinese)](docs/first-run-setup.zh-CN.md) for more setup details.
 

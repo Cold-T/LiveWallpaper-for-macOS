@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #import "playback/WallpaperProject.h"
+#import "playback/WallpaperLibrary.h"
 #import "playback/WinePlayback.h"
 
 extern char **environ;
@@ -1225,33 +1226,27 @@ static NSString *OriginalDesktopWallpaperUUIDsKey() {
 }
 
 - (void)checkFolderPath {
-  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-  if ([defaults objectForKey:@"WallpaperFolder"]) {
-    folderPath = [defaults stringForKey:@"WallpaperFolder"];
-  } else if (!folderPath) {
-    folderPath = [NSHomeDirectory() stringByAppendingPathComponent:@"LiveWall"];
-    [defaults setObject:folderPath forKey:@"WallpaperFolder"];
-    [defaults synchronize];
-  }
+  folderPath = [self getFolderPath];
 }
 
 - (NSString *)getFolderPath {
-  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
   NSString *path = [defaults stringForKey:@"WallpaperFolder"];
-
-  if (!path) {
-
-    NSString *cacheDir =
-        [[[NSFileManager defaultManager]
-             URLsForDirectory:NSCachesDirectory
-                    inDomains:NSUserDomainMask].firstObject path];
-
-    path = [cacheDir stringByAppendingPathComponent:@"LiveWallpaper"];
-
-    [defaults setObject:path forKey:@"WallpaperFolder"];
-    [defaults synchronize];
+  NSString *legacy = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"LiveWallpaper"];
+  // Recover after reinstall, including an empty legacy default saved at launch.
+  if (!path.length || ([path isEqualToString:legacy] && !LWLibraryHasPlayableItems(path))) {
+    NSString *support = [NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"LiveWallpaper"];
+    NSError *error = nil;
+    NSString *library = LWRestoreDownloadedWallpaperLibrary(support, &error);
+    if (library) {
+      path = library;
+      [defaults setObject:path forKey:@"WallpaperFolder"];
+      [defaults synchronize];
+    } else {
+      NSLog(@"Failed to restore downloaded wallpaper library: %@", error);
+      path = path ?: legacy;
+    }
   }
-
   return path;
 }
 
